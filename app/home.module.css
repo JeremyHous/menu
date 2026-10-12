@@ -1,0 +1,306 @@
+/* Home page. Shares its palette with /menus so the two read as one app. */
+
+.page {
+  --paper: #e3e8d6;
+  --ink: #2d1b2e;
+  --ink-soft: #5e4b5c;
+  --saffron: #d99a12;
+  --saffron-ink: #8a5c00;
+  --leaf: #4f7a3a;
+  --rust: #a4402a;
+  --rule: rgba(45, 27, 46, 0.35);
+
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+:global(.dark) .page {
+  --paper: #241626;
+  --ink: #e3e8d6;
+  --ink-soft: #b5b9a8;
+  --saffron: #f0b43a;
+  --saffron-ink: #f0b43a;
+  --leaf: #9cc47f;
+  --rust: #f08a6c;
+  --rule: rgba(227, 232, 214, 0.35);
+}
+
+.frame {
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* Header */
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+.wordmark {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Hero */
+
+.hero {
+  padding-top: clamp(2.5rem, 8vw, 6rem);
+  padding-bottom: clamp(3rem, 7vw, 5rem);
+}
+
+.headline {
+  max-width: 11ch;
+  font-size: clamp(3.25rem, 10vw, 7rem);
+  line-height: 0.92;
+  letter-spacing: -0.025em;
+}
+
+.intro {
+  max-width: 34rem;
+  margin-top: 1.75rem;
+  font-size: 1.1875rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.75rem;
+  margin-top: 2.25rem;
+}
+
+.primary {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.375rem;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.primary:hover {
+  opacity: 0.88;
+}
+
+.secondary {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+}
+
+.secondary:hover {
+  text-decoration-color: var(--saffron);
+}
+
+.primary:focus-visible,
+.secondary:focus-visible,
+.wordmark:focus-visible,
+.dishLink:focus-visible,
+.more:focus-visible {
+  outline: 2px solid var(--saffron);
+  outline-offset: 3px;
+}
+
+/* Price list: each dish's footprint drawn as a bar */
+
+.board {
+  padding-top: 2.5rem;
+  padding-bottom: 4rem;
+  border-top: 2px dotted var(--rule);
+}
+
+.boardTitle {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.15;
+}
+
+.boardNote {
+  margin-top: 0.375rem;
+  font-size: 0.9375rem;
+  color: var(--ink-soft);
+}
+
+.dishes {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin: 2rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Name above the bar on narrow screens; name, bar and figure in one row
+   from tablet width up. */
+.dish {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name name"
+    "bar figure";
+  align-items: center;
+  column-gap: 1rem;
+  row-gap: 0.25rem;
+}
+
+@media (min-width: 40rem) {
+  .dish {
+    grid-template-columns: minmax(9rem, 15rem) minmax(0, 1fr) 5.5rem;
+    grid-template-areas: "name bar figure";
+  }
+}
+
+.dishName {
+  grid-area: name;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.dishLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dishLink:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.15em;
+}
+
+.track {
+  grid-area: bar;
+  display: block;
+  height: 0.875rem;
+}
+
+.bar {
+  display: block;
+  height: 100%;
+  min-width: 0.375rem;
+  border-radius: 0 0.25rem 0.25rem 0;
+  background: currentColor;
+  transform-origin: left center;
+  animation: grow 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    animation: none;
+  }
+}
+
+.figure {
+  grid-area: figure;
+  font-size: 1.25rem;
+  line-height: 1;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.unit {
+  margin-left: 0.2em;
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
+.light {
+  color: var(--leaf);
+}
+
+.moderate {
+  color: var(--saffron-ink);
+}
+
+.moderate .bar {
+  color: var(--saffron);
+}
+
+.heavy {
+  color: var(--rust);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.75rem;
+  margin-top: 2.25rem;
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.legend .moderate {
+  color: var(--saffron-ink);
+}
+
+.more {
+  display: inline-block;
+  margin-top: 1.5rem;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.empty {
+  margin-top: 1.5rem;
+  max-width: 34rem;
+  color: var(--ink-soft);
+}
+
+.empty a {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Footer */
+
+.footer {
+  margin-top: auto;
+  border-top: 2px dotted var(--rule);
+}
+
+.footerInner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+}

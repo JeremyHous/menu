@@ -1,0 +1,430 @@
+"use server";
+
+import * as db from "@/app/lib/db";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+// These actions are open to anyone, matching the current RLS policies on
+// public.menus. Add an auth check to each one before deploying the app.
+
+type MenuField =
+  | "title"
+  | "body"
+  | "ingredients"
+  | "carbon_footprint_kg"
+  | "fans_appreciation"
+  | "supplier_name";
+
+type MenuValues = Record<MenuField, string>;
+type MenuErrors = Partial<Record<MenuField, string>>;
+
+export type MenuFormState = {
+  message?: string;
+  errors?: MenuErrors;
+  // Raw submitted values, so the form can be refilled after a failed save.
+  values?: Partial<MenuValues>;
+};
+
+type ParsedMenu =
+  | { ok: true; menu: db.MenuInput; values: MenuValues }
+  | { ok: false; errors: MenuErrors; values: MenuValues };
+
+const SAVE_FAILED = "The recipe could not be saved. Please try again.";
+const DELETE_FAILED = "The recipe could not be deleted. Please try again.";
+const NOT_FOUND = "This recipe could not be found.";
+const NO_LONGER_EXISTS = "This recipe no longer exists.";
+
+// FormData entries can be files; anything that is not text counts as empty.
+function readText(formData: FormData, field: string) {
+  const value = formData.get(field);
+  return typeof value === "string" ? value : "";
+}
+
+function optionalText(value: string) {
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+// Rounds a plain decimal such as "12" or "1.005" half away from zero, the way
+// Postgres coerces a value into numeric(p, s). Using integer digits avoids
+// floating-point errors (Math.round(1.005 * 100) gives 100, not 101).
+// Returns null for anything else, including "-1", "1e3" and "0x10".
+function roundDecimal(raw: string, places: number): number | null {
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(raw.trim());
+  if (!match) return null;
+
+  const [, whole, fraction = ""] = match;
+  const digits = BigInt(
+    whole + fraction.padEnd(places + 1, "0").slice(0, places + 1),
+  );
+  const rounded = (digits + BigInt(5)) / BigInt(10);
+  return Number(rounded) / 10 ** places;
+}
+
+// Mirrors the table's constraints so users get a field-level message instead
+// of a database error. Numbers are rounded before range checks, matching the
+// order in which Postgres applies the column type and CHECK constraints.
+function parseMenu(formData: FormData): ParsedMenu {
+  const values: MenuValues = {
+    title: readText(formData, "title"),
+    body: readText(formData, "body"),
+    ingredients: readText(formData, "ingredients"),
+    carbon_footprint_kg: readText(formData, "carbon_footprint_kg"),
+    fans_appreciation: readText(formData, "fans_appreciation"),
+    supplier_name: readText(formData, "supplier_name"),
+  };
+  const errors: MenuErrors = {};
+
+  const title = values.title.trim();
+  if (!title) errors.title = "Enter a title.";
+
+  // Ingredients are typed one per line or comma-separated. trim() also drops
+  // the \r left over from Windows line endings.
+  const ingredients = values.ingredients
+    .split(/[,\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  // numeric(6, 2) with carbon_footprint_kg >= 0.
+  let carbon: number | null = null;
+  if (values.carbon_footprint_kg.trim() !== "") {
+    carbon = roundDecimal(values.carbon_footprint_kg, 2);
+    if (carbon === null || carbon > 9999.99) {
+      errors.carbon_footprint_kg = "Enter a number between 0 and 9999.99.";
+    }
+  }
+
+  // numeric(2, 1) with fans_appreciation between 0 and 5.
+  let fans: number | null = null;
+  if (values.fans_appreciation.trim() !== "") {
+    fans = roundDecimal(values.fans_appreciation, 1);
+    if (fans === null || fans > 5) {
+      errors.fans_appreciation = "Enter a rating between 0 and 5.";
+    }
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return { ok: false, errors, values };
+  }
+
+  return {
+    ok: true,
+    menu: {
+      title,
+      body: optionalText(values.body),
+      ingredients,
+      carbon_footprint_kg: carbon,
+      fans_appreciation: fans,
+      supplier_name: optionalText(values.supplier_name),
+    },
+    values,
+  };
+}
+
+// Only plain positive integers are valid ids.
+function parseId(formData: FormData): number | null {
+  const raw = readText(formData, "id").trim();
+  if (!/^[1-9]\d*$/.test(raw)) return null;
+
+  const id = Number(raw);
+  return Number.isSafeInteger(id) ? id : null;
+}
+
+export async function createMenu(
+  _prevState: MenuFormState,
+  formData: FormData,
+): Promise<MenuFormState> {
+  const parsed = parseMenu(formData);
+  if (!parsed.ok) return { errors: parsed.errors, values: parsed.values };
+
+  let created: db.Menu;
+  try {
+    created = await db.createMenu(parsed.menu);
+  } catch (error) {
+    if (error instanceof db.DatabaseError) {
+      return { message: SAVE_FAILED, values: parsed.values };
+    }
+    throw error;
+  }
+
+  // redirect() throws, so it stays outside the try block.
+  revalidatePath("/menus", "layout");
+  redirect(`/menus/${created.id}`);
+}
+
+export async function updateMenu(
+  _prevState: MenuFormState,
+  formData: FormData,
+): Promise<MenuFormState> {
+  const parsed = parseMenu(formData);
+  const id = parseId(formData);
+  if (!id) return { message: NOT_FOUND, values: parsed.values };
+  if (!parsed.ok) return { errors: parsed.errors, values: parsed.values };
+
+  let updated: db.Menu | null;
+  try {
+    updated = await db.updateMenu(id, parsed.menu);
+  } catch (error) {
+    if (error instanceof db.DatabaseError) {
+      return { message: SAVE_FAILED, values: parsed.values };
+    }
+    throw error;
+  }
+  if (!updated) {
+    return { message: NO_LONGER_EXISTS, values: parsed.values };
+  }
+
+  revalidatePath("/menus", "layout");
+  redirect(`/menus/${id}`);
+}
+
+export async function deleteMenu(
+  _prevState: MenuFormState,
+  formData: FormData,
+): Promise<MenuFormState> {
+  const id = parseId(formData);
+  if (!id) return { message: NOT_FOUND };
+
+  let deleted: boolean;
+  try {
+    deleted = await db.deleteMenu(id);
+  } catch (error) {
+    if (error instanceof db.DatabaseError) {
+      return { message: DELETE_FAILED };
+    }
+    throw error;
+  }
+  if (!deleted) {
+    return { message: NO_LONGER_EXISTS };
+  }
+
+  revalidatePath("/menus", "layout");
+  redirect("/menus");
+}
+
+// Collections
+
+const COLLECTION_NAME_MAX = 100;
+const COLLECTION_SAVE_FAILED =
+  "The collection could not be created. Please try again.";
+const ASSIGN_FAILED = "The collection could not be changed. Please try again.";
+const COLLECTION_GONE =
+  "That collection no longer exists. Refresh the page and pick another.";
+
+export type CollectionFormState = {
+  error?: string;
+  // Raw submitted name, so the input can be refilled after a failed save.
+  name?: string;
+  // Set after a successful save; changes on every save so the form can tell
+  // two creations apart.
+  created?: { id: number; name: string };
+};
+
+export async function createCollection(
+  _prevState: CollectionFormState,
+  formData: FormData,
+): Promise<CollectionFormState> {
+  const raw = readText(formData, "name");
+  const name = raw.trim();
+  if (!name) return { error: "Enter a name.", name: raw };
+  if (name.length > COLLECTION_NAME_MAX) {
+    return {
+      error: `Keep the name under ${COLLECTION_NAME_MAX + 1} characters.`,
+      name: raw,
+    };
+  }
+
+  let created: db.Collection;
+  try {
+    created = await db.createCollection(name);
+  } catch (error) {
+    if (error instanceof db.DatabaseError) {
+      return { error: COLLECTION_SAVE_FAILED, name: raw };
+    }
+    throw error;
+  }
+
+  revalidatePath("/menus", "layout");
+  return { created: { id: created.id, name: created.name } };
+}
+
+export type AssignCollectionState = {
+  error?: string;
+  // Confirmation shown after a successful change.
+  message?: string;
+};
+
+export async function assignMenuCollection(
+  _prevState: AssignCollectionState,
+  formData: FormData,
+): Promise<AssignCollectionState> {
+  const menuId = parseId(formData);
+  if (!menuId) return { error: NOT_FOUND };
+
+  // An empty value means "No collection".
+  const rawCollection = readText(formData, "collection_id").trim();
+  let collectionId: number | null = null;
+  if (rawCollection !== "") {
+    collectionId = /^[1-9]\d*$/.test(rawCollection)
+      ? Number(rawCollection)
+      : NaN;
+    if (!Number.isSafeInteger(collectionId)) return { error: COLLECTION_GONE };
+  }
+
+  let collection: db.Collection | null = null;
+  let updated: db.Menu | null;
+  try {
+    if (collectionId !== null) {
+      collection = await db.getCollection(collectionId);
+      if (!collection) return { error: COLLECTION_GONE };
+    }
+    updated = await db.setMenuCollection(menuId, collectionId);
+  } catch (error) {
+    if (error instanceof db.DatabaseError) {
+      // The collection was deleted between the check and the update.
+      if (error.code === db.FOREIGN_KEY_VIOLATION) {
+        return { error: COLLECTION_GONE };
+      }
+      return { error: ASSIGN_FAILED };
+    }
+    throw error;
+  }
+  if (!updated) return { error: NO_LONGER_EXISTS };
+
+  revalidatePath("/menus", "layout");
+  return {
+    message: collection
+      ? `Moved to “${collection.name}”.`
+      : "Removed from its collection.",
+  };
+}
+
+// Tags
+
+const TAG_NAME_MAX = 50;
+const TAG_ADD_FAILED = "The tag could not be added. Please try again.";
+const TAG_REMOVE_FAILED = "The tag could not be removed. Please try again.";
+
+export type MenuTagState = {
+  error?: string;
+  // Confirmation shown after a successful change.
+  message?: string;
+  // Raw submitted name, so the input can be refilled after a failed add.
+  name?: string;
+};
+
+// Attaches a tag to a menu by name, reusing an existing tag whose name
+// matches ignoring case and surrounding whitespace, and creating one
+// otherwise.
+export async function addMenuTag(
+  _prevState: MenuTagState,
+  formData: FormData,
+): Promise<MenuTagState> {
+  const raw = readText(formData, "name");
+  const menuId = parseId(formData);
+  if (!menuId) return { error: NOT_FOUND, name: raw };
+
+  const name = raw.trim();
+  if (!name) return { error: "Enter a tag name.", name: raw };
+  if (name.length > TAG_NAME_MAX) {
+    return {
+      error: `Keep the tag under ${TAG_NAME_MAX + 1} characters.`,
+      name: raw,
+    };
+  }
+
+  let tag: db.Tag;
+  try {
+    // Checking the menu first avoids creating a tag for a menu that has been
+    // deleted.
+    const [menu, existing] = await Promise.all([
+      db.getMenu(menuId),
+      db.findTagByName(name),
+    ]);
+    if (!menu) return { error: NO_LONGER_EXISTS, name: raw };
+
+    if (existing) {
+      const current = await db.listMenuTags(menuId);
+      if (current.some((t) => t.id === existing.id)) {
+        return { error: `This recipe already has “${existing.name}”.` };
+      }
+    }
+
+    tag = existing ?? (await db.createTag(name));
+    await db.addTagToMenu(menuId, tag.id);
+  } catch (error) {
+    if (error instanceof db.DatabaseError) {
+      return { error: TAG_ADD_FAILED, name: raw };
+    }
+    throw error;
+  }
+
+  // The sidebar filters by tag, so it is refreshed too.
+  revalidatePath("/menus", "layout");
+  return { message: `Added “${tag.name}”.` };
+}
+
+// Detaches a tag from one menu. The tag itself and its use on other menus
+// are kept.
+export async function removeMenuTag(
+  _prevState: MenuTagState,
+  formData: FormData,
+): Promise<MenuTagState> {
+  const menuId = parseId(formData);
+  if (!menuId) return { error: NOT_FOUND };
+
+  const rawTag = readText(formData, "tag_id").trim();
+  const tagId = /^[1-9]\d*$/.test(rawTag) ? Number(rawTag) : NaN;
+  if (!Number.isSafeInteger(tagId)) return { error: TAG_REMOVE_FAILED };
+  const tagName = readText(formData, "tag_name");
+
+  try {
+    // Returns false when the tag was already gone, which is the outcome the
+    // user asked for, so it is not reported as an error.
+    await db.removeTagFromMenu(menuId, tagId);
+  } catch (error) {
+    if (error instanceof db.DatabaseError) {
+      return { error: TAG_REMOVE_FAILED };
+    }
+    throw error;
+  }
+
+  // The sidebar filters by tag, so it is refreshed too.
+  revalidatePath("/menus", "layout");
+  return { message: tagName ? `Removed “${tagName}”.` : "Tag removed." };
+}
+
+const TAG_DELETE_FAILED = "The tag could not be deleted. Please try again.";
+
+export type DeleteTagState = {
+  error?: string;
+  // Set after a successful delete; a new object each time, so the sidebar can
+  // tell two deletions apart.
+  deleted?: { id: number; name: string };
+};
+
+// Deletes a tag everywhere: the foreign key's cascade also takes it off every
+// menu that had it. The menus themselves are kept.
+export async function deleteTag(
+  _prevState: DeleteTagState,
+  formData: FormData,
+): Promise<DeleteTagState> {
+  const rawTag = readText(formData, "tag_id").trim();
+  const tagId = /^[1-9]\d*$/.test(rawTag) ? Number(rawTag) : NaN;
+  if (!Number.isSafeInteger(tagId)) return { error: TAG_DELETE_FAILED };
+  const tagName = readText(formData, "tag_name");
+
+  try {
+    // Returns false when the tag was already gone, which is the outcome the
+    // user asked for, so it is not reported as an error.
+    await db.deleteTag(tagId);
+  } catch (error) {
+    if (error instanceof db.DatabaseError) {
+      return { error: TAG_DELETE_FAILED };
+    }
+    throw error;
+  }
+
+  revalidatePath("/menus", "layout");
+  return { deleted: { id: tagId, name: tagName } };
+}
