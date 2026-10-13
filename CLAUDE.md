@@ -72,6 +72,47 @@ source dirs, and build.
   update or delete sample data to test a feature; use read-only queries, or a
   `do $$ … raise exception $$` block that rolls back.
 
+## Authentication
+
+Rules:
+
+- Use Supabase Auth for all sign-in and session handling — never build custom
+  auth or store passwords yourself
+- Every page under /workspace requires a signed-in user; verify this on the
+  server and redirect to /login if they are not signed in
+- After sign-out, redirect to /login
+
+How it is implemented:
+
+- `/login` and `/sign-up` share `app/login/auth-form.tsx`, which posts to
+  the Server Actions in `app/login/actions.ts` (`signIn`, `signUp`,
+  `signOut`). They call Supabase Auth on the server, so the server client
+  sets the session cookies.
+- **Redirects:**
+  - After sign-in, the user lands on `/workspace`.
+  - Sign-out ends the session on the server and redirects to `/login`.
+  - `/auth/login` and `/auth/sign-up` forward to the new pages.
+- **Email confirmation** links come back through `app/auth/confirm/route.ts`,
+  which accepts both `?code=` (Supabase's default email) and `?token_hash=`
+  (custom template).
+
+How to verify the session:
+
+- **Every signed-in-only page must verify the session with the Supabase Auth
+  server before it loads**, and redirect to the sign-in page if the user is
+  not signed in. Do this by calling `requireUser()` from
+  `lib/supabase/auth.ts`, which uses `supabase.auth.getUser()`.
+  - Never rely on the browser-side session alone, nor on `getSession()`,
+    `getClaims()` or the proxy's redirect (`lib/supabase/proxy.ts`). Those
+    can answer from the cookie without asking the Auth server.
+  - Call it in the page itself, inside a `<Suspense>` boundary, and put all
+    private content behind it so nothing renders before the check. A
+    layout-only check does not re-run on client navigation between pages.
+  - Signed-in-only pages today: `/workspace` (and the starter's
+    `/protected`). `/`, `/menus/*`, `/login`, `/sign-up` and `/auth/*` are
+    public. A new page under `/workspace` needs its own `requireUser()`
+    call; the proxy's redirect is not enough.
+
 ## Conventions
 
 - **Match the surrounding code.** Comments explain *why* (complete sentences,

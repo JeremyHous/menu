@@ -1,24 +1,15 @@
-import { redirect } from "next/navigation";
-
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/auth";
 import { InfoIcon } from "lucide-react";
 import { FetchDataSteps } from "@/components/tutorial/fetch-data-steps";
 import { Suspense } from "react";
 
-async function UserDetails() {
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.getClaims();
+// Everything on this page is for signed-in users only, so all of it renders
+// after requireUser() has checked the session with the Supabase Auth server.
+async function ProtectedContent() {
+  const user = await requireUser();
 
-  if (error || !data?.claims) {
-    redirect("/auth/login");
-  }
-
-  return JSON.stringify(data.claims, null, 2);
-}
-
-export default function ProtectedPage() {
   return (
-    <div className="flex-1 w-full flex flex-col gap-12">
+    <>
       <div className="w-full">
         <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex gap-3 items-center">
           <InfoIcon size="16" strokeWidth={2} />
@@ -29,15 +20,31 @@ export default function ProtectedPage() {
       <div className="flex flex-col gap-2 items-start">
         <h2 className="font-bold text-2xl mb-4">Your user details</h2>
         <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
-          <Suspense>
-            <UserDetails />
-          </Suspense>
+          {JSON.stringify(user, null, 2)}
         </pre>
       </div>
       <div>
         <h2 className="font-bold text-2xl mb-4">Next steps</h2>
         <FetchDataSteps />
       </div>
+    </>
+  );
+}
+
+export default function ProtectedPage() {
+  return (
+    <div className="flex-1 w-full flex flex-col gap-12">
+      {/* The session is only known at request time, so it is checked inside
+          Suspense, as Cache Components requires. */}
+      <Suspense
+        fallback={
+          <p className="text-sm text-muted-foreground">
+            Checking your session…
+          </p>
+        }
+      >
+        <ProtectedContent />
+      </Suspense>
     </div>
   );
 }
