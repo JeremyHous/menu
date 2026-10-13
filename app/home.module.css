@@ -56,6 +56,40 @@
   text-decoration: none;
 }
 
+/* Signed-in account details and sign-out, on /workspace. */
+
+.account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+  font-size: 0.9375rem;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.textButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.textButton:hover {
+  text-decoration-color: var(--saffron);
+}
+
+.textButton:focus-visible {
+  outline: 2px solid var(--saffron);
+  outline-offset: 3px;
+}
+
 /* Hero */
 
 .hero {

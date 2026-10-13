@@ -1,11 +1,6 @@
-import { SignUpForm } from "@/components/sign-up-form";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <SignUpForm />
-      </div>
-    </div>
-  );
+// The sign-up page moved to /sign-up. Keeps old links and bookmarks working.
+export default function OldSignUpPage() {
+  redirect("/sign-up");
 }
