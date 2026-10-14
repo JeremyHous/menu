@@ -1,109 +1,128 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
-</a>
+# Menu
 
-<p align="center">
- The fastest way to build apps with Next.js and Supabase
-</p>
-
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
-</p>
-<br/>
+A recipe app where every dish is priced in carbon: each menu shows its
+footprint per serving, in kilograms of CO₂e. Built with Next.js (App Router)
+and Supabase.
 
 ## Features
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Proxy
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Password-based authentication block installed via the [Supabase UI Library](https://supabase.com/ui/docs/nextjs/password-based-auth)
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+- **Recipes ("menus")** with a description, ingredients and their quantity
+  for one adult portion, carbon footprint, fan rating and supplier.
+- **Collections:** file recipes into collections, by picking one on the
+  recipe page or by dragging a recipe onto a collection in the sidebar.
+- **Tags** on recipes, a tag filter (a recipe must have every selected tag)
+  and text search. Filters live in the URL, so a filtered list can be
+  bookmarked or shared.
+- **Images:** upload a JPEG, PNG or WebP (up to 5 MB) from your device, or
+  pick an image already in Supabase Storage. A thumbnail appears beside the
+  recipe's name and in the list.
+- **Accounts:** sign-up and sign-in with Supabase Auth. Every page except
+  sign-in and sign-up requires a signed-in user.
+- **Shared and private items:** the original recipes, collections and tags
+  are shared, so every user can read and edit them but no one can delete
+  them. Items a user creates are private to them, and they can delete them.
+  Row Level Security in the database enforces this.
 
-## Demo
+## Tech stack
 
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
+- [Next.js](https://nextjs.org) (App Router, Cache Components, Server
+  Actions) with React 19 and TypeScript
+- [Supabase](https://supabase.com): Postgres with Row Level Security, Auth
+  (via `@supabase/ssr` cookies) and Storage
+- CSS modules for the app's own pages; Tailwind CSS and shadcn/ui only in
+  the pages that came with the starter (auth, `/protected`)
 
-## Deploy to Vercel
+## Getting started
 
-Vercel deployment will guide you through creating a Supabase account and project.
+### Prerequisites
 
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
+- Node.js 20 or later
+- A Supabase project, with the CLI linked to it
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
+### Setup
 
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
-
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
-
-## Clone and run locally
-
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
-
-2. Create a Next.js app using the Supabase Starter template npx command
-
-   ```bash
-   npx create-next-app --example with-supabase with-supabase-app
-   ```
+1. Install dependencies:
 
    ```bash
-   yarn create next-app --example with-supabase with-supabase-app
+   npm install
    ```
+
+2. Copy `.env.example` to `.env.local` and fill in your project's values
+   (Supabase dashboard → Project settings → API):
 
    ```bash
-   pnpm create next-app --example with-supabase with-supabase-app
+   NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-or-anon-key>
    ```
 
-3. Use `cd` to change into the app's directory
+   The app only uses the publishable key. Never put the service-role key in
+   the app.
+
+3. In the Supabase dashboard, create a **public** Storage bucket named
+   `menu-images`. Do this before applying the migrations: one of them sets
+   the bucket's size and type limits, and migrations are never re-run.
+
+4. Link the Supabase CLI to your project and apply the migrations:
 
    ```bash
-   cd with-supabase-app
+   npx supabase login
+   npx supabase link --project-ref <project-ref>
+   npx supabase migration list --linked
+   npx supabase db push
    ```
 
-4. Rename `.env.example` to `.env.local` and update the following:
-
-  ```env
-  NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[INSERT SUPABASE PROJECT API PUBLISHABLE OR ANON KEY]
-  ```
-  > [!NOTE]
-  > This example uses `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, which refers to Supabase's new **publishable** key format.
-  > Both legacy **anon** keys and new **publishable** keys can be used with this variable name during the transition period. Supabase's dashboard may show `NEXT_PUBLIC_SUPABASE_ANON_KEY`; its value can be used in this example.
-  > See the [full announcement](https://github.com/orgs/supabase/discussions/29260) for more information.
-
-  Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
-
-5. You can now run the Next.js local development server:
+5. Start the dev server and open <http://localhost:3000>:
 
    ```bash
    npm run dev
    ```
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
+## Scripts
 
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
+| Command                         | What it does                                         |
+| ------------------------------- | ---------------------------------------------------- |
+| `npm run dev`                   | Development server on port 3000                      |
+| `npm run build`                 | Production build                                     |
+| `npm run start`                 | Serve the production build                           |
+| `npx tsc --noEmit`              | Type check                                           |
+| `npx eslint app lib components` | Lint the source (`npm run lint` also scans `.next/`) |
+| `npx prettier --write <files>`  | Format files (Prettier defaults)                     |
 
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
+## Project structure
 
-## Feedback and issues
+```
+app/
+  lib/db.ts              The only module that queries Supabase (tables and Storage)
+  menus/                 Recipe list, recipe pages, sidebar and all server actions
+    actions.ts           Server actions (validate, call db, revalidate)
+    [id]/page.tsx        Recipe page: details, image, collection, tags
+    [id]/edit/page.tsx   Recipe form
+  login/, sign-up/       Sign-in and sign-up (Supabase Auth)
+  workspace/, author/    Other signed-in pages
+lib/supabase/            Supabase clients, requireUser() and the session proxy
+supabase/migrations/     Database migrations, applied with the Supabase CLI
+docs/                    Project documentation
+```
 
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
+## Documentation
 
-## More Supabase examples
+- [`docs/supabase-schema.md`](docs/supabase-schema.md): tables, ownership,
+  Row Level Security, grants and the `menu-images` Storage bucket.
+- [`AGENTS.md`](AGENTS.md): conventions and workflows for coding agents
+  (and a good summary for human contributors too). `CLAUDE.md` adds notes
+  for Claude Code.
 
-- [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
-- [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+## Notes
+
+- **Where uploaded images are stored:** images uploaded from the app go in
+  a folder named after the recipe's id, for example
+  `menu-images/1/picmenu6-<id>.png`. In the Supabase dashboard, open that
+  folder to see them. Images at the top level of the bucket are a shared
+  library any signed-in user can pick.
+- **Older recipes and the recipe form:** some original recipes have
+  ingredients without quantities. The recipe form asks for a quantity on
+  every ingredient before it saves. Images, collections and tags are saved
+  separately, so they work on any recipe.
+- **Schema changes:** add a new migration file in `supabase/migrations/` and
+  apply it with `npx supabase db push`; don't change the schema in the
+  dashboard, so the migration history stays in sync.
