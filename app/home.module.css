@@ -49,16 +49,11 @@
   padding-bottom: 1.5rem;
 }
 
-.wordmark {
-  font-size: 1.5rem;
-  line-height: 1;
-  color: inherit;
-  text-decoration: none;
-}
-
-/* Signed-in account details and sign-out, on /workspace. */
+/* Signed-in account details and sign-out, on /workspace, kept at the right
+   of the header. */
 
 .account {
+  margin-left: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -148,7 +143,6 @@
 
 .primary:focus-visible,
 .secondary:focus-visible,
-.wordmark:focus-visible,
 .dishLink:focus-visible,
 .more:focus-visible {
   outline: 2px solid var(--saffron);

@@ -1,5 +1,6 @@
 import {
   DatabaseError,
+  isShared,
   listMenuTagLinks,
   listTags,
   type MenuTagLink,
@@ -35,10 +36,11 @@ export async function SidebarTags() {
 
   return (
     <TagFilterButtons
-      tags={tags.map(({ id, name }) => ({
-        id,
-        name,
-        menuCount: counts.get(id) ?? 0,
+      tags={tags.map((tag) => ({
+        id: tag.id,
+        name: tag.name,
+        menuCount: counts.get(tag.id) ?? 0,
+        shared: isShared(tag),
       }))}
     />
   );

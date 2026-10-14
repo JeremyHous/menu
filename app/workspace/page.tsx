@@ -14,9 +14,6 @@ async function Workspace() {
   return (
     <>
       <header className={`${styles.frame} ${styles.header}`}>
-        <Link href="/" className={`${display.className} ${styles.wordmark}`}>
-          Menus
-        </Link>
         <div className={styles.account}>
           <span>Signed in as {user.email}</span>
           {/* Signs out on the server, then redirects to /login. */}
@@ -37,10 +34,10 @@ async function Workspace() {
         </p>
         <div className={styles.actions}>
           <Link href="/menus" className={styles.primary}>
-            Browse the menus
+            Display all menus
           </Link>
           <Link href="/menus/new" className={styles.secondary}>
-            Add a recipe
+            Add a menu with its recipe
           </Link>
         </div>
       </main>

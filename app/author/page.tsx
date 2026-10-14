@@ -86,7 +86,7 @@ export default function AuthorPage() {
               </div>
               <div className={styles.actions}>
                 <Link href="/menus" className={styles.primary}>
-                  Browse the menus
+                  Display all menus
                 </Link>
               </div>
             </section>

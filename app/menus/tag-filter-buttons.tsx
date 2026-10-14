@@ -16,15 +16,17 @@ const initialDeleteState: DeleteTagState = {};
 const initialRenameState: RenameTagState = {};
 
 type TagFilterButtonsProps = {
-  // menuCount is how many menus have the tag.
-  tags: (Pick<Tag, "id" | "name"> & { menuCount: number })[];
+  // menuCount is how many menus have the tag; shared is whether every user
+  // sees it.
+  tags: (Pick<Tag, "id" | "name"> & { menuCount: number; shared: boolean })[];
 };
 
-// The tag toggles in the sidebar. Selecting tags updates ?tags= in the URL,
-// keeping the current page, so the sidebar and the menus page both filter.
-// "Edit tags" shows a rename and a delete button on each tag. Renaming
-// changes the name on every menu that has the tag; deleting asks for
-// confirmation first, since it takes the tag off every menu.
+// The tag toggles in the sidebar, as "Shared tags" and "My own tags".
+// Selecting tags updates ?tags= in the URL, keeping the current page, so the
+// sidebar and the menus page both filter. "Edit tags" shows a rename button
+// on each tag and a delete button on the user's own. Renaming changes the
+// name on every menu that has the tag; deleting asks for confirmation first,
+// since it takes the tag off every menu.
 export function TagFilterButtons({ tags }: TagFilterButtonsProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -163,10 +165,15 @@ export function TagFilterButtons({ tags }: TagFilterButtonsProps) {
   const confirming = tags.find((tag) => tag.id === confirmingId);
   const renamingTag = tags.find((tag) => tag.id === renamingId);
 
-  return (
-    <div className={styles.tagFilter}>
+  const sharedTags = tags.filter((tag) => tag.shared);
+  const ownTags = tags.filter((tag) => !tag.shared);
+
+  // Shared tags can be renamed but not deleted, so they get no delete
+  // button.
+  function tagList(list: typeof tags) {
+    return (
       <ul className={styles.tagList}>
-        {tags.map((tag) => {
+        {list.map((tag) => {
           const on = selected.includes(tag.id);
           return (
             <li key={tag.id} className={styles.filterTagItem}>
@@ -191,22 +198,57 @@ export function TagFilterButtons({ tags }: TagFilterButtonsProps) {
                   >
                     <span aria-hidden="true">✎</span>
                   </button>
-                  <button
-                    type="button"
-                    className={styles.tagRemove}
-                    aria-label={`Delete tag “${tag.name}”`}
-                    aria-expanded={confirmingId === tag.id}
-                    disabled={renaming || deleting}
-                    onClick={() => openConfirmation(tag.id)}
-                  >
-                    ×
-                  </button>
+                  {!tag.shared && (
+                    <button
+                      type="button"
+                      className={styles.tagRemove}
+                      aria-label={`Delete tag “${tag.name}”`}
+                      aria-expanded={confirmingId === tag.id}
+                      disabled={renaming || deleting}
+                      onClick={() => openConfirmation(tag.id)}
+                    >
+                      ×
+                    </button>
+                  )}
                 </>
               )}
             </li>
           );
         })}
       </ul>
+    );
+  }
+
+  return (
+    <div className={styles.tagFilter}>
+      {sharedTags.length > 0 && (
+        <section
+          className={styles.category}
+          aria-labelledby="shared-tags-heading"
+        >
+          <h3 id="shared-tags-heading" className={styles.categoryTitle}>
+            Shared tags
+          </h3>
+          <p className={styles.categoryNote}>
+            Every user sees these. They can be renamed, not deleted.
+          </p>
+          {tagList(sharedTags)}
+        </section>
+      )}
+      <section className={styles.category} aria-labelledby="own-tags-heading">
+        <h3 id="own-tags-heading" className={styles.categoryTitle}>
+          My own tags
+        </h3>
+        <p className={styles.categoryNote}>Only you can see these.</p>
+        {ownTags.length > 0 ? (
+          tagList(ownTags)
+        ) : (
+          <p className={styles.groupEmpty}>
+            You have no tags yet. Type a new tag on one of your recipes’ pages
+            to create one.
+          </p>
+        )}
+      </section>
 
       {editing && confirming && (
         <form
@@ -287,6 +329,8 @@ export function TagFilterButtons({ tags }: TagFilterButtonsProps) {
             {renamingTag.menuCount === 0
               ? "No menu uses this tag yet."
               : `The new name shows on ${renamingTag.menuCount === 1 ? "the menu" : `all ${renamingTag.menuCount} menus`} that use it.`}
+            {renamingTag.shared &&
+              " This tag is shared: every user sees the new name."}
           </p>
           <div className={styles.actions}>
             <button

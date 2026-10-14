@@ -15,8 +15,9 @@ const initialState: MenuTagState = {};
 type MenuTagsProps = {
   menuId: number;
   tags: Pick<Tag, "id" | "name">[];
-  // The existing tags this menu does not have yet.
-  availableTags: Pick<Tag, "id" | "name">[];
+  // The existing tags this menu does not have yet, listed in a shared and an
+  // own group.
+  availableTags: (Pick<Tag, "id" | "name"> & { shared: boolean })[];
 };
 
 // Shows a menu's tags on its page, with a list to add an existing tag, a
@@ -95,11 +96,25 @@ export function MenuTags({ menuId, tags, availableTags }: MenuTagsProps) {
               className={styles.input}
             >
               <option value="">Choose an existing tag</option>
-              {availableTags.map((tag) => (
-                <option key={tag.id} value={tag.id}>
-                  {tag.name}
-                </option>
-              ))}
+              {[
+                { label: "Shared tags", shared: true },
+                { label: "My own tags", shared: false },
+              ].map((group) => {
+                const options = availableTags.filter(
+                  (tag) => tag.shared === group.shared,
+                );
+                return (
+                  options.length > 0 && (
+                    <optgroup key={group.label} label={group.label}>
+                      {options.map((tag) => (
+                        <option key={tag.id} value={tag.id}>
+                          {tag.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )
+                );
+              })}
             </select>
             <button type="submit" className={styles.button} disabled={picking}>
               {picking ? "Adding…" : "Add"}

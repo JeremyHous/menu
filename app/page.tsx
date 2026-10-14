@@ -131,10 +131,10 @@ export default function Home() {
               </p>
               <div className={styles.actions}>
                 <Link href="/menus" className={styles.primary}>
-                  Browse the menus
+                  Display all menus
                 </Link>
                 <Link href="/menus/new" className={styles.secondary}>
-                  Add a recipe
+                  Add a menu with its recipe
                 </Link>
               </div>
             </section>

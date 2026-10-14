@@ -1,15 +1,19 @@
 import {
   DatabaseError,
+  isShared,
   listMenus,
   listMenuTagLinks,
   listTags,
   type Menu,
+  menuImageUrl,
   type Tag,
 } from "@/app/lib/db";
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 import { SignedIn } from "../signed-in";
 import { display } from "./fonts";
+import { formatIngredient } from "./ingredients";
 import { carbonClass, Stars } from "./menu-display";
 import { DraggableDish } from "./menu-drag";
 import styles from "./menus.module.css";
@@ -104,7 +108,7 @@ async function MenuList({ rawTags, rawQuery }: MenuListProps) {
         <p>The menu is empty. Add your first recipe and it will appear here.</p>
         <div className={styles.emptyActions}>
           <Link href="/menus/new" className={styles.button}>
-            Add a recipe
+            Add a menu with its recipe
           </Link>
         </div>
       </div>
@@ -160,8 +164,23 @@ async function MenuList({ rawTags, rawQuery }: MenuListProps) {
               id: menu.id,
               title: menu.title,
               collectionId: menu.collection_id,
+              shared: isShared(menu),
             }}
           >
+            {/* Decorative: the dish's name links to the recipe beside it. */}
+            {menu.image_path && (
+              <span className={`${styles.thumb} ${styles.dishThumb}`}>
+                <Image
+                  src={menuImageUrl(menu.image_path)}
+                  alt=""
+                  fill
+                  sizes="6.5rem"
+                  // The whole dish is dragged onto collections, not the
+                  // image on its own.
+                  draggable={false}
+                />
+              </span>
+            )}
             <div className={styles.line}>
               <h2 className={`${display.className} ${styles.name}`}>
                 <Link
@@ -184,12 +203,15 @@ async function MenuList({ rawTags, rawQuery }: MenuListProps) {
               )}
             </div>
             {menu.body && <p className={styles.body}>{menu.body}</p>}
-            {menu.ingredients.length > 0 && (
+            {menu.ingredient_items.length > 0 && (
               <p className={styles.ingredients}>
-                {menu.ingredients.join(", ")}
+                {menu.ingredient_items.map(formatIngredient).join(" · ")}
               </p>
             )}
             <div className={styles.meta}>
+              <span className={styles.ownerBadge}>
+                {isShared(menu) ? "Shared" : "Yours"}
+              </span>
               {menu.fans_appreciation !== null && (
                 <span>
                   <Stars rating={menu.fans_appreciation} />
@@ -228,7 +250,7 @@ export default function MenusPage({ searchParams }: PageProps<"/menus">) {
                 href="/menus/new"
                 className={`${styles.button} ${styles.addLink}`}
               >
-                Add a recipe
+                Add a menu with its recipe
               </Link>
             </header>
             {/* The search box reads the URL, which is only known at request
