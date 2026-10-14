@@ -2,7 +2,12 @@
 
 import type { Tag } from "@/app/lib/db";
 import { useActionState } from "react";
-import { addMenuTag, removeMenuTag, type MenuTagState } from "./actions";
+import {
+  addExistingMenuTag,
+  addMenuTag,
+  removeMenuTag,
+  type MenuTagState,
+} from "./actions";
 import styles from "./menus.module.css";
 
 const initialState: MenuTagState = {};
@@ -10,11 +15,18 @@ const initialState: MenuTagState = {};
 type MenuTagsProps = {
   menuId: number;
   tags: Pick<Tag, "id" | "name">[];
+  // The existing tags this menu does not have yet.
+  availableTags: Pick<Tag, "id" | "name">[];
 };
 
-// Shows a menu's tags on its page, with a form to add one by name and a
-// button on each tag to take it off this menu.
-export function MenuTags({ menuId, tags }: MenuTagsProps) {
+// Shows a menu's tags on its page, with a list to add an existing tag, a
+// form to add one by name, and a button on each tag to take it off this
+// menu.
+export function MenuTags({ menuId, tags, availableTags }: MenuTagsProps) {
+  const [pickState, pickAction, picking] = useActionState(
+    addExistingMenuTag,
+    initialState,
+  );
   const [addState, addAction, adding] = useActionState(
     addMenuTag,
     initialState,
@@ -62,6 +74,51 @@ export function MenuTags({ menuId, tags }: MenuTagsProps) {
       <p role="status" className={styles.status}>
         {!removing && removeState.message}
       </p>
+
+      {availableTags.length > 0 && (
+        <form action={pickAction} noValidate>
+          <input type="hidden" name="id" value={menuId} />
+          <label htmlFor="tag-existing" className={styles.srOnly}>
+            Existing tag
+          </label>
+          <div className={styles.pickerRow}>
+            {/* React resets the form after each submission, so the list
+                goes back to its placeholder. */}
+            <select
+              id="tag-existing"
+              name="tag_id"
+              defaultValue=""
+              aria-invalid={pickState.error ? true : undefined}
+              aria-describedby={
+                pickState.error ? "tag-existing-error" : undefined
+              }
+              className={styles.input}
+            >
+              <option value="">Choose an existing tag</option>
+              {availableTags.map((tag) => (
+                <option key={tag.id} value={tag.id}>
+                  {tag.name}
+                </option>
+              ))}
+            </select>
+            <button type="submit" className={styles.button} disabled={picking}>
+              {picking ? "Adding…" : "Add"}
+            </button>
+          </div>
+          {pickState.error && (
+            <p
+              id="tag-existing-error"
+              role="alert"
+              className={styles.fieldError}
+            >
+              {pickState.error}
+            </p>
+          )}
+          <p role="status" className={styles.status}>
+            {!picking && pickState.message}
+          </p>
+        </form>
+      )}
 
       <form action={addAction} noValidate>
         <input type="hidden" name="id" value={menuId} />

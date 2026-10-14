@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { SiteNav } from "../site-nav";
 import { body, display } from "./fonts";
 import { MenuDragProvider } from "./menu-drag";
 import styles from "./menus.module.css";
@@ -17,6 +18,9 @@ export default function MenusLayout({ children }: LayoutProps<"/menus">) {
       <div
         className={`${body.className} ${body.variable} ${styles.page} ${styles.shell}`}
       >
+        {/* First in the page, so keyboard users reach it before the
+            sidebar. */}
+        <SiteNav current="menus" className={styles.siteNav} />
         <aside className={styles.sidebar} aria-label="Collections and tags">
           <h2
             id="collections-heading"

@@ -1,0 +1,39 @@
+/* Main navigation, shared by the home, author and menus pages. It uses the
+   --ink, --rule and --saffron variables each page defines. */
+
+.nav {
+  font-size: 0.9375rem;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.link:hover {
+  border-color: var(--rule);
+  text-decoration: underline;
+}
+
+.link[aria-current="page"] {
+  border-color: var(--ink);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--saffron);
+  outline-offset: 2px;
+}

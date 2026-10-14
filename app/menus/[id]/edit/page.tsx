@@ -1,3 +1,4 @@
+import { requireUser } from "@/lib/supabase/auth";
 import Link from "next/link";
 import { Suspense } from "react";
 import { updateMenu } from "../../actions";
@@ -6,7 +7,9 @@ import { getMenuOrNotFound } from "../../load-menu";
 import { MenuForm } from "../../menu-form";
 import styles from "../../menus.module.css";
 
+// Signed-in only: the session is checked before the recipe is loaded.
 async function EditMenu({ id }: { id: string }) {
+  await requireUser();
   const menu = await getMenuOrNotFound(id);
 
   return (
@@ -36,7 +39,9 @@ export default function EditMenuPage({
       <div className={styles.sheet}>
         {/* params are only known at request time, so they are read inside
             Suspense, as Cache Components requires. */}
-        <Suspense fallback={<p className={styles.notice}>Setting the table…</p>}>
+        <Suspense
+          fallback={<p className={styles.notice}>Setting the table…</p>}
+        >
           {params.then(({ id }) => (
             <EditMenu id={id} />
           ))}

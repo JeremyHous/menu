@@ -245,6 +245,19 @@ export async function listTags(): Promise<Tag[]> {
   return data;
 }
 
+// Returns null when no tag has this id.
+export async function getTag(id: number): Promise<Tag | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("tags")
+    .select(TAG_COLUMNS)
+    .eq("id", id)
+    .maybeSingle<Tag>();
+
+  if (error) fail("getTag", error);
+  return data;
+}
+
 // Returns the tag whose name equals this one, ignoring case and surrounding
 // whitespace, or null when there is none. Callers pass a trimmed name. The
 // table has no unique constraint on names, so if several tags match, the
@@ -276,6 +289,21 @@ export async function createTag(name: string): Promise<Tag> {
     .single<Tag>();
 
   if (error) fail("createTag", error);
+  return data;
+}
+
+// Returns null when no tag has this id. Menus refer to tags by id, so every
+// menu that has the tag shows the new name.
+export async function renameTag(id: number, name: string): Promise<Tag | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("tags")
+    .update({ name })
+    .eq("id", id)
+    .select(TAG_COLUMNS)
+    .maybeSingle<Tag>();
+
+  if (error) fail("renameTag", error);
   return data;
 }
 

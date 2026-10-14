@@ -1,11 +1,14 @@
 "use server";
 
 import * as db from "@/app/lib/db";
+import { requireUser } from "@/lib/supabase/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-// These actions are open to anyone, matching the current RLS policies on
-// public.menus. Add an auth check to each one before deploying the app.
+// Every action starts with requireUser(): Server Actions can be called
+// directly, without loading a page, so the pages' checks do not cover them.
+// Signed-out callers are redirected to /login. The RLS policies on the tables
+// are still open, though, so the database itself does not check sign-in yet.
 
 type MenuField =
   | "title"
@@ -134,6 +137,7 @@ export async function createMenu(
   _prevState: MenuFormState,
   formData: FormData,
 ): Promise<MenuFormState> {
+  await requireUser();
   const parsed = parseMenu(formData);
   if (!parsed.ok) return { errors: parsed.errors, values: parsed.values };
 
@@ -156,6 +160,7 @@ export async function updateMenu(
   _prevState: MenuFormState,
   formData: FormData,
 ): Promise<MenuFormState> {
+  await requireUser();
   const parsed = parseMenu(formData);
   const id = parseId(formData);
   if (!id) return { message: NOT_FOUND, values: parsed.values };
@@ -182,6 +187,7 @@ export async function deleteMenu(
   _prevState: MenuFormState,
   formData: FormData,
 ): Promise<MenuFormState> {
+  await requireUser();
   const id = parseId(formData);
   if (!id) return { message: NOT_FOUND };
 
@@ -220,19 +226,30 @@ export type CollectionFormState = {
   created?: { id: number; name: string };
 };
 
+// Returns the trimmed name, or the error to show for it.
+function parseCollectionName(
+  raw: string,
+): { ok: true; name: string } | { ok: false; error: string } {
+  const name = raw.trim();
+  if (!name) return { ok: false, error: "Enter a name." };
+  if (name.length > COLLECTION_NAME_MAX) {
+    return {
+      ok: false,
+      error: `Keep the name under ${COLLECTION_NAME_MAX + 1} characters.`,
+    };
+  }
+  return { ok: true, name };
+}
+
 export async function createCollection(
   _prevState: CollectionFormState,
   formData: FormData,
 ): Promise<CollectionFormState> {
+  await requireUser();
   const raw = readText(formData, "name");
-  const name = raw.trim();
-  if (!name) return { error: "Enter a name.", name: raw };
-  if (name.length > COLLECTION_NAME_MAX) {
-    return {
-      error: `Keep the name under ${COLLECTION_NAME_MAX + 1} characters.`,
-      name: raw,
-    };
-  }
+  const parsed = parseCollectionName(raw);
+  if (!parsed.ok) return { error: parsed.error, name: raw };
+  const { name } = parsed;
 
   let created: db.Collection;
   try {
@@ -248,6 +265,47 @@ export async function createCollection(
   return { created: { id: created.id, name: created.name } };
 }
 
+const COLLECTION_RENAME_FAILED =
+  "The collection could not be renamed. Please try again.";
+const RENAMED_COLLECTION_GONE =
+  "This collection no longer exists. Refresh the page to see the current list.";
+
+export type RenameCollectionState = {
+  error?: string;
+  // Raw submitted name, so the input can be refilled after a failed save.
+  name?: string;
+  // Set after a successful rename; a new object each time, so the form can
+  // tell two renames apart.
+  renamed?: { id: number; name: string };
+};
+
+export async function renameCollection(
+  _prevState: RenameCollectionState,
+  formData: FormData,
+): Promise<RenameCollectionState> {
+  await requireUser();
+  const raw = readText(formData, "name");
+  const id = parseId(formData);
+  if (!id) return { error: RENAMED_COLLECTION_GONE, name: raw };
+
+  const parsed = parseCollectionName(raw);
+  if (!parsed.ok) return { error: parsed.error, name: raw };
+
+  let renamed: db.Collection | null;
+  try {
+    renamed = await db.renameCollection(id, parsed.name);
+  } catch (error) {
+    if (error instanceof db.DatabaseError) {
+      return { error: COLLECTION_RENAME_FAILED, name: raw };
+    }
+    throw error;
+  }
+  if (!renamed) return { error: RENAMED_COLLECTION_GONE, name: raw };
+
+  revalidatePath("/menus", "layout");
+  return { renamed: { id: renamed.id, name: renamed.name } };
+}
+
 export type AssignCollectionState = {
   error?: string;
   // Confirmation shown after a successful change.
@@ -258,6 +316,7 @@ export async function assignMenuCollection(
   _prevState: AssignCollectionState,
   formData: FormData,
 ): Promise<AssignCollectionState> {
+  await requireUser();
   const menuId = parseId(formData);
   if (!menuId) return { error: NOT_FOUND };
 
@@ -320,6 +379,7 @@ export async function addMenuTag(
   _prevState: MenuTagState,
   formData: FormData,
 ): Promise<MenuTagState> {
+  await requireUser();
   const raw = readText(formData, "name");
   const menuId = parseId(formData);
   if (!menuId) return { error: NOT_FOUND, name: raw };
@@ -364,12 +424,55 @@ export async function addMenuTag(
   return { message: `Added “${tag.name}”.` };
 }
 
+const TAG_GONE =
+  "That tag no longer exists. Refresh the page and pick another.";
+
+// Attaches a tag the user picked from the list of existing tags. It works by
+// id rather than by name, since several tags can share a name.
+export async function addExistingMenuTag(
+  _prevState: MenuTagState,
+  formData: FormData,
+): Promise<MenuTagState> {
+  await requireUser();
+  const menuId = parseId(formData);
+  if (!menuId) return { error: NOT_FOUND };
+
+  const rawTag = readText(formData, "tag_id").trim();
+  if (rawTag === "") return { error: "Choose a tag." };
+  const tagId = /^[1-9]\d*$/.test(rawTag) ? Number(rawTag) : NaN;
+  if (!Number.isSafeInteger(tagId)) return { error: TAG_GONE };
+
+  let tag: db.Tag | null;
+  try {
+    const [menu, found] = await Promise.all([
+      db.getMenu(menuId),
+      db.getTag(tagId),
+    ]);
+    if (!menu) return { error: NO_LONGER_EXISTS };
+    if (!found) return { error: TAG_GONE };
+    tag = found;
+    await db.addTagToMenu(menuId, tag.id);
+  } catch (error) {
+    if (error instanceof db.DatabaseError) {
+      // The tag or menu was deleted between the check and the insert.
+      if (error.code === db.FOREIGN_KEY_VIOLATION) return { error: TAG_GONE };
+      return { error: TAG_ADD_FAILED };
+    }
+    throw error;
+  }
+
+  // The sidebar filters by tag, so it is refreshed too.
+  revalidatePath("/menus", "layout");
+  return { message: `Added “${tag.name}”.` };
+}
+
 // Detaches a tag from one menu. The tag itself and its use on other menus
 // are kept.
 export async function removeMenuTag(
   _prevState: MenuTagState,
   formData: FormData,
 ): Promise<MenuTagState> {
+  await requireUser();
   const menuId = parseId(formData);
   if (!menuId) return { error: NOT_FOUND };
 
@@ -394,6 +497,77 @@ export async function removeMenuTag(
   return { message: tagName ? `Removed “${tagName}”.` : "Tag removed." };
 }
 
+const TAG_RENAME_FAILED = "The tag could not be renamed. Please try again.";
+const RENAMED_TAG_GONE =
+  "This tag no longer exists. Refresh the page to see the current list.";
+
+export type RenameTagState = {
+  error?: string;
+  // Raw submitted name, so the input can be refilled after a failed save.
+  name?: string;
+  // Set after a successful rename; a new object each time, so the sidebar can
+  // tell two renames apart.
+  renamed?: { id: number; from: string; name: string };
+};
+
+// Renames a tag everywhere it is used. A name that matches another tag,
+// ignoring case and surrounding whitespace, is refused: adding a tag by name
+// reuses the existing one, so two tags with the same name would be ambiguous.
+export async function renameTag(
+  _prevState: RenameTagState,
+  formData: FormData,
+): Promise<RenameTagState> {
+  await requireUser();
+  const raw = readText(formData, "name");
+  const rawTag = readText(formData, "tag_id").trim();
+  const tagId = /^[1-9]\d*$/.test(rawTag) ? Number(rawTag) : NaN;
+  if (!Number.isSafeInteger(tagId)) {
+    return { error: RENAMED_TAG_GONE, name: raw };
+  }
+
+  const name = raw.trim();
+  if (!name) return { error: "Enter a tag name.", name: raw };
+  if (name.length > TAG_NAME_MAX) {
+    return {
+      error: `Keep the tag under ${TAG_NAME_MAX + 1} characters.`,
+      name: raw,
+    };
+  }
+
+  let previous: db.Tag | undefined;
+  let renamed: db.Tag | null;
+  try {
+    const tags = await db.listTags();
+    previous = tags.find((tag) => tag.id === tagId);
+    if (!previous) return { error: RENAMED_TAG_GONE, name: raw };
+
+    const wanted = name.toLowerCase();
+    const clash = tags.find(
+      (tag) => tag.id !== tagId && tag.name.trim().toLowerCase() === wanted,
+    );
+    if (clash) {
+      return {
+        error: `A tag named “${clash.name}” already exists. Choose another name.`,
+        name: raw,
+      };
+    }
+
+    renamed = await db.renameTag(tagId, name);
+  } catch (error) {
+    if (error instanceof db.DatabaseError) {
+      return { error: TAG_RENAME_FAILED, name: raw };
+    }
+    throw error;
+  }
+  if (!renamed) return { error: RENAMED_TAG_GONE, name: raw };
+
+  // Menu pages, the menu list and the sidebar all show tag names.
+  revalidatePath("/menus", "layout");
+  return {
+    renamed: { id: renamed.id, from: previous.name, name: renamed.name },
+  };
+}
+
 const TAG_DELETE_FAILED = "The tag could not be deleted. Please try again.";
 
 export type DeleteTagState = {
@@ -409,6 +583,7 @@ export async function deleteTag(
   _prevState: DeleteTagState,
   formData: FormData,
 ): Promise<DeleteTagState> {
+  await requireUser();
   const rawTag = readText(formData, "tag_id").trim();
   const tagId = /^[1-9]\d*$/.test(rawTag) ? Number(rawTag) : NaN;
   if (!Number.isSafeInteger(tagId)) return { error: TAG_DELETE_FAILED };

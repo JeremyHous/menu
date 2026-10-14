@@ -1,4 +1,5 @@
-import { listCollections, listMenuTags } from "@/app/lib/db";
+import { listCollections, listMenuTags, listTags } from "@/app/lib/db";
+import { requireUser } from "@/lib/supabase/auth";
 import Link from "next/link";
 import { Suspense } from "react";
 import { BackToMenus } from "../back-to-menus";
@@ -10,12 +11,18 @@ import { carbonClass, Stars } from "../menu-display";
 import { MenuTags } from "../menu-tags";
 import styles from "../menus.module.css";
 
+// Signed-in only: the session is checked before the recipe is loaded.
 async function MenuDetail({ id }: { id: string }) {
+  await requireUser();
   const menu = await getMenuOrNotFound(id);
-  const [collections, tags] = await Promise.all([
+  const [collections, tags, allTags] = await Promise.all([
     listCollections(),
     listMenuTags(menu.id),
+    listTags(),
   ]);
+  // The existing tags this menu does not have yet, offered in a list.
+  const tagIds = new Set(tags.map((tag) => tag.id));
+  const availableTags = allTags.filter((tag) => !tagIds.has(tag.id));
 
   return (
     <article>
@@ -67,6 +74,7 @@ async function MenuDetail({ id }: { id: string }) {
         <MenuTags
           menuId={menu.id}
           tags={tags.map(({ id, name }) => ({ id, name }))}
+          availableTags={availableTags.map(({ id, name }) => ({ id, name }))}
         />
       </section>
 

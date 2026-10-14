@@ -47,14 +47,17 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
-  if (
-    request.nextUrl.pathname !== "/" &&
-    !user &&
-    !request.nextUrl.pathname.startsWith("/menus") &&
-    !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/sign-up") &&
-    !request.nextUrl.pathname.startsWith("/auth")
-  ) {
+  // Only the sign-in, sign-up and /auth/* pages (email confirmation, password
+  // reset) are open to signed-out visitors. "/auth" is matched as a whole
+  // segment so that it does not also match "/author".
+  const { pathname } = request.nextUrl;
+  const isPublic =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/sign-up") ||
+    pathname === "/auth" ||
+    pathname.startsWith("/auth/");
+
+  if (!user && !isPublic) {
     // no user, potentially respond by redirecting the user to the login page.
     // This is only a fast first check: getClaims() can answer from the
     // cookie. Signed-in-only pages must still call requireUser() from

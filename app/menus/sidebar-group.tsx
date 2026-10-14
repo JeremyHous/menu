@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { type DragEvent, useState } from "react";
 import { useMenuDrag } from "./menu-drag";
 import styles from "./menus.module.css";
+import { RenameCollection } from "./rename-collection";
 
 export type SidebarMenu = { id: number; title: string; tagIds: number[] };
 
@@ -131,6 +132,9 @@ export function SidebarGroup({
         </ul>
       ) : (
         <p className={styles.groupEmpty}>{emptyText}</p>
+      )}
+      {collectionId !== null && (
+        <RenameCollection id={collectionId} name={name} />
       )}
     </details>
   );

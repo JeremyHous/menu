@@ -9,6 +9,7 @@ import {
   type MenuTagLink,
   type Tag,
 } from "@/app/lib/db";
+import { requireUser } from "@/lib/supabase/auth";
 import styles from "./menus.module.css";
 import type { SidebarMenu } from "./sidebar-group";
 import { type SidebarGroupData, SidebarNav } from "./sidebar-nav";
@@ -18,6 +19,8 @@ import { tagsByMenu } from "./tag-filter";
 // collection. The tags selected in the URL filter the menus in the browser.
 // Call it inside a <Suspense> boundary.
 export async function Sidebar() {
+  // Signed-in only, like the pages beside it.
+  await requireUser();
   let collections: Collection[];
   let menus: Menu[];
   let tags: Tag[];

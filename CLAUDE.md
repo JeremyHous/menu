@@ -30,7 +30,8 @@ source dirs, and build.
   throws `DatabaseError`, which has a generic message and a Postgres `code`;
   callers catch it and show a user-facing message.
 - `app/menus/actions.ts`: all server actions. Each one:
-  1. validates its `FormData` input (ids must be plain positive integers);
+  1. checks the session with `requireUser()`, then validates its `FormData`
+     input (ids must be plain positive integers);
   2. calls `db.*`;
   3. returns `{ error | message }` state for `useActionState`;
   4. calls `revalidatePath("/menus", "layout")` so the sidebar refreshes too.
@@ -56,7 +57,8 @@ source dirs, and build.
 - **Schema:** see `docs/supabase-schema.md` (tables `menus`, `collections`,
   `tags`, `menu_tags`). Keep those names; never rename, drop or recreate
   tables, and preserve existing data.
-- **RLS policies are fully open** (no auth checks yet).
+- **RLS policies are fully open** (no auth checks yet in the database; the
+  app checks sign-in on the server instead).
 - **Names are not unique** in the database. Tag reuse (case- and
   whitespace-insensitive) is enforced only in `findTagByName`.
 - **Schema changes:**
@@ -108,10 +110,14 @@ How to verify the session:
   - Call it in the page itself, inside a `<Suspense>` boundary, and put all
     private content behind it so nothing renders before the check. A
     layout-only check does not re-run on client navigation between pages.
-  - Signed-in-only pages today: `/workspace` (and the starter's
-    `/protected`). `/`, `/menus/*`, `/login`, `/sign-up` and `/auth/*` are
-    public. A new page under `/workspace` needs its own `requireUser()`
-    call; the proxy's redirect is not enough.
+  - Signed-in-only pages today: `/`, `/author`, every `/menus` page,
+    `/workspace` (and the starter's `/protected`). Only `/login`, `/sign-up`
+    and `/auth/*` are public. Pages wrap their content in `<SignedIn>`
+    (`app/signed-in.tsx`) or call `requireUser()` in their async component;
+    the menus sidebar's data components call it too. A new page needs its
+    own check; the proxy's redirect is not enough.
+  - Every server action in `app/menus/actions.ts` calls `requireUser()`
+    first, since actions can be called without loading a page.
 
 ## Conventions
 

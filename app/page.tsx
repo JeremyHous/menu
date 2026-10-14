@@ -7,6 +7,8 @@ import { Suspense } from "react";
 import { DatabaseError, listMenus, type Menu } from "./lib/db";
 import styles from "./home.module.css";
 import { body, display } from "./menus/fonts";
+import { SignedIn } from "./signed-in";
+import { SiteNav } from "./site-nav";
 
 // How many dishes the price list shows before linking to the full list.
 const BOARD_LIMIT = 8;
@@ -95,74 +97,84 @@ async function PriceList() {
 export default function Home() {
   return (
     <div className={`${body.className} ${styles.page}`}>
-      <header className={`${styles.frame} ${styles.header}`}>
-        <Link href="/" className={`${display.className} ${styles.wordmark}`}>
-          Menus
-        </Link>
-        {!hasEnvVars ? (
-          <EnvVarWarning />
-        ) : (
-          <Suspense>
-            <AuthButton />
-          </Suspense>
-        )}
-      </header>
-
-      <main>
-        <section className={`${styles.frame} ${styles.hero}`}>
-          <h1 className={`${display.className} ${styles.headline}`}>
-            A menu priced in carbon.
-          </h1>
-          <p className={styles.intro}>
-            Every recipe lists its footprint per serving in kilograms of CO₂e,
-            so you can see what a dish costs the climate before you cook it.
-            File recipes into collections, tag them, and find them again by
-            name.
+      {/* Signed-in only. The session is only known at request time, so it is
+          checked inside Suspense, as Cache Components requires. */}
+      <Suspense
+        fallback={
+          <p className={`${styles.frame} ${styles.empty}`}>
+            Checking your session…
           </p>
-          <div className={styles.actions}>
-            <Link href="/menus" className={styles.primary}>
-              Browse the menus
-            </Link>
-            <Link href="/menus/new" className={styles.secondary}>
-              Add a recipe
-            </Link>
-          </div>
-        </section>
+        }
+      >
+        <SignedIn>
+          <header className={`${styles.frame} ${styles.header}`}>
+            <SiteNav current="home" />
+            {!hasEnvVars ? (
+              <EnvVarWarning />
+            ) : (
+              <Suspense>
+                <AuthButton />
+              </Suspense>
+            )}
+          </header>
 
-        <section
-          className={`${styles.frame} ${styles.board}`}
-          aria-labelledby="board-title"
-        >
-          <h2
-            id="board-title"
-            className={`${display.className} ${styles.boardTitle}`}
-          >
-            What each dish costs
-          </h2>
-          <p className={styles.boardNote}>
-            Kilograms of CO₂e per serving, lightest first. Bar length is
-            relative to the heaviest dish.
-          </p>
-          <Suspense
-            fallback={<p className={styles.empty}>Weighing the dishes…</p>}
-          >
-            <PriceList />
-          </Suspense>
-          <div className={styles.legend}>
-            <span className={styles.light}>
-              <span className={styles.swatch} />
-              Under 1 kg: light
-            </span>
-            <span className={styles.moderate}>
-              <span className={styles.swatch} />1 to 3 kg: moderate
-            </span>
-            <span className={styles.heavy}>
-              <span className={styles.swatch} />
-              Over 3 kg: heavy
-            </span>
-          </div>
-        </section>
-      </main>
+          <main>
+            <section className={`${styles.frame} ${styles.hero}`}>
+              <h1 className={`${display.className} ${styles.headline}`}>
+                A menu priced in carbon.
+              </h1>
+              <p className={styles.intro}>
+                Every recipe lists its footprint per serving in kilograms of
+                CO₂e, so you can see what a dish costs the climate before you
+                cook it. File recipes into collections, tag them, and find them
+                again by name.
+              </p>
+              <div className={styles.actions}>
+                <Link href="/menus" className={styles.primary}>
+                  Browse the menus
+                </Link>
+                <Link href="/menus/new" className={styles.secondary}>
+                  Add a recipe
+                </Link>
+              </div>
+            </section>
+
+            <section
+              className={`${styles.frame} ${styles.board}`}
+              aria-labelledby="board-title"
+            >
+              <h2
+                id="board-title"
+                className={`${display.className} ${styles.boardTitle}`}
+              >
+                What each dish costs
+              </h2>
+              <p className={styles.boardNote}>
+                Kilograms of CO₂e per serving, lightest first. Bar length is
+                relative to the heaviest dish.
+              </p>
+              <Suspense
+                fallback={<p className={styles.empty}>Weighing the dishes…</p>}
+              >
+                <PriceList />
+              </Suspense>
+              <div className={styles.legend}>
+                <span className={styles.light}>
+                  <span className={styles.swatch} />
+                  Under 1 kg: light
+                </span>
+                <span className={styles.moderate}>
+                  <span className={styles.swatch} />1 to 3 kg: moderate
+                </span>
+                <span className={styles.heavy}>
+                  <span className={styles.swatch} />
+                  Over 3 kg: heavy
+                </span>
+              </div>
+            </section>
+          </main>
+        </SignedIn>
+      </Suspense>
 
       <footer className={styles.footer}>
         <div className={`${styles.frame} ${styles.footerInner}`}>

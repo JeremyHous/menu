@@ -8,6 +8,7 @@
   --rust: #a4402a;
   --rule: rgba(45, 27, 46, 0.35);
 
+  position: relative;
   min-height: 100vh;
   background: var(--paper);
   color: var(--ink);
@@ -39,6 +40,14 @@
 .back:hover {
   color: var(--ink);
   text-decoration: underline;
+}
+
+/* The main navigation, pinned to the page's top right corner, inside its top
+   padding. */
+.siteNav {
+  position: absolute;
+  top: 0.5rem;
+  right: 1rem;
 }
 
 .back:focus-visible,
@@ -518,6 +527,12 @@
   gap: 0.5rem;
 }
 
+/* Rename control inside an open collection group, indented like its menus. */
+.renameCollection {
+  padding: 0 0.5rem 0.75rem 1.75rem;
+  font-size: 0.875rem;
+}
+
 .buttonSmall {
   padding: 0.4375rem 0.875rem;
   font-size: 0.875rem;
@@ -758,6 +773,18 @@
   width: 100%;
   padding: 0.75rem;
   border: 2px solid var(--rust);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.tagRename {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid var(--rule);
   border-radius: 0.375rem;
   font-size: 0.875rem;
   overflow-wrap: anywhere;

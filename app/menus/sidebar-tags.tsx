@@ -5,6 +5,7 @@ import {
   type MenuTagLink,
   type Tag,
 } from "@/app/lib/db";
+import { requireUser } from "@/lib/supabase/auth";
 import styles from "./menus.module.css";
 import { TagFilterButtons } from "./tag-filter-buttons";
 
@@ -12,6 +13,8 @@ import { TagFilterButtons } from "./tag-filter-buttons";
 // it so deleting can say what it affects. Call it inside a <Suspense>
 // boundary.
 export async function SidebarTags() {
+  // Signed-in only, like the pages beside it.
+  await requireUser();
   let tags: Tag[];
   let links: MenuTagLink[];
   try {

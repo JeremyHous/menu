@@ -8,6 +8,7 @@ import {
 } from "@/app/lib/db";
 import Link from "next/link";
 import { Suspense } from "react";
+import { SignedIn } from "../signed-in";
 import { display } from "./fonts";
 import { carbonClass, Stars } from "./menu-display";
 import { DraggableDish } from "./menu-drag";
@@ -210,49 +211,55 @@ export default function MenusPage({ searchParams }: PageProps<"/menus">) {
   return (
     <main className={styles.main}>
       <div className={styles.sheet}>
-        <Link href="/" className={styles.back}>
-          Back to home
-        </Link>
-        <header className={styles.header}>
-          <h1 className={`${display.className} ${styles.title}`}>Menus</h1>
-          <p className={styles.intro}>
-            Every dish is priced in carbon: the figure beside each name is its
-            footprint per serving, in <strong>kilograms of CO₂e</strong>.
-          </p>
-          <Link
-            href="/menus/new"
-            className={`${styles.button} ${styles.addLink}`}
-          >
-            Add a recipe
-          </Link>
-        </header>
-        {/* The search box reads the URL, which is only known at request
-            time, so it renders inside Suspense too. */}
-        <Suspense fallback={<MenuSearchFallback />}>
-          <MenuSearch />
-        </Suspense>
+        {/* Signed-in only. The session is only known at request time, so it
+            is checked inside Suspense, as Cache Components requires. */}
         <Suspense
-          fallback={<p className={styles.notice}>Setting the table…</p>}
+          fallback={<p className={styles.notice}>Checking your session…</p>}
         >
-          {/* searchParams are only known at request time, so they are read
+          <SignedIn>
+            <header className={styles.header}>
+              <h1 className={`${display.className} ${styles.title}`}>Menus</h1>
+              <p className={styles.intro}>
+                Every dish is priced in carbon: the figure beside each name is
+                its footprint per serving, in <strong>kilograms of CO₂e</strong>
+                .
+              </p>
+              <Link
+                href="/menus/new"
+                className={`${styles.button} ${styles.addLink}`}
+              >
+                Add a recipe
+              </Link>
+            </header>
+            {/* The search box reads the URL, which is only known at request
+            time, so it renders inside Suspense too. */}
+            <Suspense fallback={<MenuSearchFallback />}>
+              <MenuSearch />
+            </Suspense>
+            <Suspense
+              fallback={<p className={styles.notice}>Setting the table…</p>}
+            >
+              {/* searchParams are only known at request time, so they are read
               inside Suspense, as Cache Components requires. */}
-          {searchParams.then(({ tags, q }) => (
-            <MenuList rawTags={tags} rawQuery={q} />
-          ))}
+              {searchParams.then(({ tags, q }) => (
+                <MenuList rawTags={tags} rawQuery={q} />
+              ))}
+            </Suspense>
+            <footer className={styles.legend}>
+              <span className={styles.low}>
+                <span className={styles.swatch} />
+                Under 1 kg: light
+              </span>
+              <span className={styles.mid}>
+                <span className={styles.swatch} />1 to 3 kg: moderate
+              </span>
+              <span className={styles.high}>
+                <span className={styles.swatch} />
+                Over 3 kg: heavy
+              </span>
+            </footer>
+          </SignedIn>
         </Suspense>
-        <footer className={styles.legend}>
-          <span className={styles.low}>
-            <span className={styles.swatch} />
-            Under 1 kg: light
-          </span>
-          <span className={styles.mid}>
-            <span className={styles.swatch} />1 to 3 kg: moderate
-          </span>
-          <span className={styles.high}>
-            <span className={styles.swatch} />
-            Over 3 kg: heavy
-          </span>
-        </footer>
       </div>
     </main>
   );
