@@ -1,10 +1,12 @@
 import {
   DatabaseError,
+  isShared,
   listMenuTagLinks,
   listTags,
   type MenuTagLink,
   type Tag,
 } from "@/app/lib/db";
+import { requireUser } from "@/lib/supabase/auth";
 import styles from "./menus.module.css";
 import { TagFilterButtons } from "./tag-filter-buttons";
 
@@ -12,6 +14,8 @@ import { TagFilterButtons } from "./tag-filter-buttons";
 // it so deleting can say what it affects. Call it inside a <Suspense>
 // boundary.
 export async function SidebarTags() {
+  // Signed-in only, like the pages beside it.
+  await requireUser();
   let tags: Tag[];
   let links: MenuTagLink[];
   try {
@@ -32,10 +36,11 @@ export async function SidebarTags() {
 
   return (
     <TagFilterButtons
-      tags={tags.map(({ id, name }) => ({
-        id,
-        name,
-        menuCount: counts.get(id) ?? 0,
+      tags={tags.map((tag) => ({
+        id: tag.id,
+        name: tag.name,
+        menuCount: counts.get(tag.id) ?? 0,
+        shared: isShared(tag),
       }))}
     />
   );

@@ -1,14 +1,19 @@
 import {
   DatabaseError,
+  isShared,
   listMenus,
   listMenuTagLinks,
   listTags,
   type Menu,
+  menuImageUrl,
   type Tag,
 } from "@/app/lib/db";
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
+import { SignedIn } from "../signed-in";
 import { display } from "./fonts";
+import { formatIngredient } from "./ingredients";
 import { carbonClass, Stars } from "./menu-display";
 import { DraggableDish } from "./menu-drag";
 import styles from "./menus.module.css";
@@ -103,7 +108,7 @@ async function MenuList({ rawTags, rawQuery }: MenuListProps) {
         <p>The menu is empty. Add your first recipe and it will appear here.</p>
         <div className={styles.emptyActions}>
           <Link href="/menus/new" className={styles.button}>
-            Add a recipe
+            Add a menu with its recipe
           </Link>
         </div>
       </div>
@@ -159,8 +164,23 @@ async function MenuList({ rawTags, rawQuery }: MenuListProps) {
               id: menu.id,
               title: menu.title,
               collectionId: menu.collection_id,
+              shared: isShared(menu),
             }}
           >
+            {/* Decorative: the dish's name links to the recipe beside it. */}
+            {menu.image_path && (
+              <span className={`${styles.thumb} ${styles.dishThumb}`}>
+                <Image
+                  src={menuImageUrl(menu.image_path)}
+                  alt=""
+                  fill
+                  sizes="6.5rem"
+                  // The whole dish is dragged onto collections, not the
+                  // image on its own.
+                  draggable={false}
+                />
+              </span>
+            )}
             <div className={styles.line}>
               <h2 className={`${display.className} ${styles.name}`}>
                 <Link
@@ -183,12 +203,15 @@ async function MenuList({ rawTags, rawQuery }: MenuListProps) {
               )}
             </div>
             {menu.body && <p className={styles.body}>{menu.body}</p>}
-            {menu.ingredients.length > 0 && (
+            {menu.ingredient_items.length > 0 && (
               <p className={styles.ingredients}>
-                {menu.ingredients.join(", ")}
+                {menu.ingredient_items.map(formatIngredient).join(" · ")}
               </p>
             )}
             <div className={styles.meta}>
+              <span className={styles.ownerBadge}>
+                {isShared(menu) ? "Shared" : "Yours"}
+              </span>
               {menu.fans_appreciation !== null && (
                 <span>
                   <Stars rating={menu.fans_appreciation} />
@@ -210,49 +233,55 @@ export default function MenusPage({ searchParams }: PageProps<"/menus">) {
   return (
     <main className={styles.main}>
       <div className={styles.sheet}>
-        <Link href="/" className={styles.back}>
-          Back to home
-        </Link>
-        <header className={styles.header}>
-          <h1 className={`${display.className} ${styles.title}`}>Menus</h1>
-          <p className={styles.intro}>
-            Every dish is priced in carbon: the figure beside each name is its
-            footprint per serving, in <strong>kilograms of CO₂e</strong>.
-          </p>
-          <Link
-            href="/menus/new"
-            className={`${styles.button} ${styles.addLink}`}
-          >
-            Add a recipe
-          </Link>
-        </header>
-        {/* The search box reads the URL, which is only known at request
-            time, so it renders inside Suspense too. */}
-        <Suspense fallback={<MenuSearchFallback />}>
-          <MenuSearch />
-        </Suspense>
+        {/* Signed-in only. The session is only known at request time, so it
+            is checked inside Suspense, as Cache Components requires. */}
         <Suspense
-          fallback={<p className={styles.notice}>Setting the table…</p>}
+          fallback={<p className={styles.notice}>Checking your session…</p>}
         >
-          {/* searchParams are only known at request time, so they are read
+          <SignedIn>
+            <header className={styles.header}>
+              <h1 className={`${display.className} ${styles.title}`}>Menus</h1>
+              <p className={styles.intro}>
+                Every dish is priced in carbon: the figure beside each name is
+                its footprint per serving, in <strong>kilograms of CO₂e</strong>
+                .
+              </p>
+              <Link
+                href="/menus/new"
+                className={`${styles.button} ${styles.addLink}`}
+              >
+                Add a menu with its recipe
+              </Link>
+            </header>
+            {/* The search box reads the URL, which is only known at request
+            time, so it renders inside Suspense too. */}
+            <Suspense fallback={<MenuSearchFallback />}>
+              <MenuSearch />
+            </Suspense>
+            <Suspense
+              fallback={<p className={styles.notice}>Setting the table…</p>}
+            >
+              {/* searchParams are only known at request time, so they are read
               inside Suspense, as Cache Components requires. */}
-          {searchParams.then(({ tags, q }) => (
-            <MenuList rawTags={tags} rawQuery={q} />
-          ))}
+              {searchParams.then(({ tags, q }) => (
+                <MenuList rawTags={tags} rawQuery={q} />
+              ))}
+            </Suspense>
+            <footer className={styles.legend}>
+              <span className={styles.low}>
+                <span className={styles.swatch} />
+                Under 1 kg: light
+              </span>
+              <span className={styles.mid}>
+                <span className={styles.swatch} />1 to 3 kg: moderate
+              </span>
+              <span className={styles.high}>
+                <span className={styles.swatch} />
+                Over 3 kg: heavy
+              </span>
+            </footer>
+          </SignedIn>
         </Suspense>
-        <footer className={styles.legend}>
-          <span className={styles.low}>
-            <span className={styles.swatch} />
-            Under 1 kg: light
-          </span>
-          <span className={styles.mid}>
-            <span className={styles.swatch} />1 to 3 kg: moderate
-          </span>
-          <span className={styles.high}>
-            <span className={styles.swatch} />
-            Over 3 kg: heavy
-          </span>
-        </footer>
       </div>
     </main>
   );

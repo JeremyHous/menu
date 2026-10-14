@@ -10,19 +10,26 @@ const initialState: AssignCollectionState = {};
 type CollectionPickerProps = {
   menuId: number;
   currentId: number | null;
-  collections: Pick<Collection, "id" | "name">[];
+  // Whether the menu is shared with every user rather than owned by one.
+  menuShared: boolean;
+  collections: (Pick<Collection, "id" | "name"> & { shared: boolean })[];
 };
 
 // Lets the user move a menu into a collection, or out of every collection,
-// from the menu's page.
+// from the menu's page. Shared and own items do not mix, so only collections
+// with the same owner as the menu are offered.
 export function CollectionPicker({
   menuId,
   currentId,
-  collections,
+  menuShared,
+  collections: allCollections,
 }: CollectionPickerProps) {
   const [state, formAction, pending] = useActionState(
     assignMenuCollection,
     initialState,
+  );
+  const collections = allCollections.filter(
+    (collection) => collection.shared === menuShared,
   );
 
   return (
@@ -54,12 +61,13 @@ export function CollectionPicker({
           {pending ? "Saving…" : "Save"}
         </button>
       </div>
-      {collections.length === 0 && (
-        <p className={styles.hint}>
-          No collections yet. Create one with “New collection” in the sidebar,
-          then pick it here.
-        </p>
-      )}
+      <p className={styles.hint}>
+        {menuShared
+          ? "This recipe is shared, so only shared collections are listed."
+          : collections.length === 0
+            ? "You have no collections yet. Create one with “New collection” under “My own collections” in the sidebar, then pick it here."
+            : "This recipe is yours, so only your own collections are listed."}
+      </p>
       {state.error && (
         <p id="collection_id-error" role="alert" className={styles.fieldError}>
           {state.error}

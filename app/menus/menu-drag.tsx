@@ -26,9 +26,13 @@ export type DraggableMenu = {
   title: string;
   // The collection the server says the menu is in, or null for none.
   collectionId: number | null;
+  // Whether the menu is shared with every user rather than owned by one.
+  shared: boolean;
 };
 
-export type DropTarget = { id: number | null; name: string };
+// shared is true for the groups under "Shared collections", including its
+// "No collection" group.
+export type DropTarget = { id: number | null; name: string; shared: boolean };
 
 type MoveStatus = { kind: "message" | "error"; text: string } | null;
 
@@ -92,8 +96,14 @@ export function MenuDragProvider({ children }: { children: ReactNode }) {
     };
   }
 
+  // Shared and own items do not mix (RLS enforces this too): a shared menu
+  // only goes into the shared groups, an own menu only into the user's own.
   function canDrop(target: DropTarget) {
-    return dragging !== null && dragging.collectionId !== target.id;
+    return (
+      dragging !== null &&
+      dragging.shared === target.shared &&
+      dragging.collectionId !== target.id
+    );
   }
 
   function isDragEvent(event: DragEvent) {

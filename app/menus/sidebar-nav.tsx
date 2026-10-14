@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useMenuDrag } from "./menu-drag";
 import styles from "./menus.module.css";
+import { NewCollection } from "./new-collection";
 import { filtersQuery, SEARCH_PARAM } from "./search";
 import { type SidebarMenu, SidebarGroup } from "./sidebar-group";
 import {
@@ -16,9 +17,12 @@ import {
 
 export type SidebarGroupData = {
   key: string;
-  // null for the "No collection" group.
+  // null for the "No collection" groups.
   collectionId: number | null;
   name: string;
+  // Whether the group is under "Shared collections" rather than "My own
+  // collections". Each category has its own "No collection" group.
+  shared: boolean;
   menus: SidebarMenu[];
   uncollected?: boolean;
 };
@@ -29,8 +33,10 @@ type SidebarNavProps = {
   tagIds: number[];
 };
 
-// The collection groups, showing only the menus that have every tag selected
-// in the URL.
+// The collection groups in two categories, "Shared collections" and "My own
+// collections", showing only the menus that have every tag selected in the
+// URL. "New collection" sits under "My own collections", since new
+// collections are always the user's own.
 export function SidebarNav({ groups, tagIds }: SidebarNavProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -59,7 +65,14 @@ export function SidebarNav({ groups, tagIds }: SidebarNavProps) {
   }));
   const matches = visible.reduce((sum, group) => sum + group.menus.length, 0);
   const total = groups.reduce((sum, group) => sum + group.menus.length, 0);
-  const hasCollections = groups.some((group) => !group.uncollected);
+  const ownTotal = groups
+    .filter((group) => !group.shared)
+    .reduce((sum, group) => sum + group.menus.length, 0);
+  const hasOwnCollections = groups.some(
+    (group) => !group.shared && !group.uncollected,
+  );
+  const shared = visible.filter((group) => group.shared);
+  const own = visible.filter((group) => !group.shared);
 
   // Says why a group is empty: the filter, an empty collection, or every
   // menu already being in a collection.
@@ -67,9 +80,38 @@ export function SidebarNav({ groups, tagIds }: SidebarNavProps) {
     if (filtering && group.unfilteredCount > 0) {
       return "None here have all the selected tags.";
     }
-    if (total === 0) return "No menus yet.";
-    if (group.uncollected) return "Every menu is in a collection.";
-    return "Empty. Pick this collection on a menu’s page to add it here.";
+    if (group.shared) {
+      return group.uncollected
+        ? "Every shared recipe is in a collection."
+        : "Empty. Pick this collection on a shared recipe’s page to add it here.";
+    }
+    if (group.uncollected) {
+      return ownTotal === 0
+        ? "You have no recipes yet. Use “Add a menu with its recipe” to create one."
+        : "Every one of your recipes is in a collection.";
+    }
+    return "Empty. Pick this collection on one of your recipes’ pages to add it here.";
+  }
+
+  function groupList(list: typeof visible) {
+    return (
+      <ul className={styles.groups}>
+        {list.map((group) => (
+          <li key={group.key}>
+            <SidebarGroup
+              name={group.name}
+              collectionId={group.collectionId}
+              shared={group.shared}
+              menus={group.menus}
+              uncollected={group.uncollected}
+              query={query}
+              linkQuery={linkQuery}
+              emptyText={emptyText(group)}
+            />
+          </li>
+        ))}
+      </ul>
+    );
   }
 
   return (
@@ -100,29 +142,41 @@ export function SidebarNav({ groups, tagIds }: SidebarNavProps) {
           {status.text}
         </p>
       )}
-      {!hasCollections && (
-        <p className={styles.groupEmpty}>
-          No collections yet. Use “New collection” below to create one.
+      <section
+        className={styles.category}
+        aria-labelledby="shared-collections-heading"
+      >
+        <h3 id="shared-collections-heading" className={styles.categoryTitle}>
+          Shared collections
+        </h3>
+        <p className={styles.categoryNote}>
+          Every user sees these and their edits. They cannot be deleted.
         </p>
-      )}
-      <ul className={styles.groups}>
-        {visible.map((group) => (
-          <li key={group.key}>
-            <SidebarGroup
-              name={group.name}
-              collectionId={group.collectionId}
-              menus={group.menus}
-              uncollected={group.uncollected}
-              query={query}
-              linkQuery={linkQuery}
-              emptyText={emptyText(group)}
-            />
-          </li>
-        ))}
-      </ul>
-      {total > 0 && hasCollections && (
+        {groupList(shared)}
+      </section>
+
+      <section
+        className={styles.category}
+        aria-labelledby="own-collections-heading"
+      >
+        <h3 id="own-collections-heading" className={styles.categoryTitle}>
+          My own collections
+        </h3>
+        <p className={styles.categoryNote}>Only you can see these.</p>
+        {!hasOwnCollections && (
+          <p className={styles.groupEmpty}>
+            You have no collections yet. Use “New collection” below to create
+            one.
+          </p>
+        )}
+        {groupList(own)}
+        <NewCollection />
+      </section>
+
+      {total > 0 && (
         <p className={styles.dragHint}>
-          Drag a menu onto a collection to move it there.
+          Drag a menu onto a collection to move it there. Shared recipes go in
+          shared collections, your own recipes in yours.
         </p>
       )}
     </nav>
@@ -144,10 +198,16 @@ function regroup(
         : group.collectionId,
     })),
   );
+  // Matching on shared too keeps each menu in its own category's "No
+  // collection" group.
   return groups.map((group) => ({
     ...group,
     menus: all
-      .filter((entry) => entry.collectionId === group.collectionId)
+      .filter(
+        (entry) =>
+          entry.collectionId === group.collectionId &&
+          entry.menu.shared === group.shared,
+      )
       .map((entry) => entry.menu),
   }));
 }

@@ -1,6 +1,7 @@
 import {
   type Collection,
   DatabaseError,
+  isShared,
   listCollections,
   listMenus,
   listMenuTagLinks,
@@ -9,15 +10,19 @@ import {
   type MenuTagLink,
   type Tag,
 } from "@/app/lib/db";
+import { requireUser } from "@/lib/supabase/auth";
 import styles from "./menus.module.css";
 import type { SidebarMenu } from "./sidebar-group";
 import { type SidebarGroupData, SidebarNav } from "./sidebar-nav";
 import { tagsByMenu } from "./tag-filter";
 
-// Lists every collection with its menus, then the menus that belong to no
-// collection. The tags selected in the URL filter the menus in the browser.
+// Lists the shared collections, then the user's own, each with its menus
+// and followed by that category's menus in no collection. The tags selected
+// in the URL filter the menus in the browser.
 // Call it inside a <Suspense> boundary.
 export async function Sidebar() {
+  // Signed-in only, like the pages beside it.
+  await requireUser();
   let collections: Collection[];
   let menus: Menu[];
   let tags: Tag[];
@@ -38,14 +43,21 @@ export async function Sidebar() {
     );
   }
 
-  // Only the id, title and tag ids reach the client.
+  // Only the id, title, tag ids and whether it is shared reach the client.
   const menuTags = tagsByMenu(links);
   const byCollection = new Map<number, SidebarMenu[]>();
-  const uncollected: SidebarMenu[] = [];
-  for (const { id, title, collection_id } of menus) {
-    const menu = { id, title, tagIds: [...(menuTags.get(id) ?? [])] };
+  const sharedUncollected: SidebarMenu[] = [];
+  const ownUncollected: SidebarMenu[] = [];
+  for (const row of menus) {
+    const { id, title, collection_id } = row;
+    const menu = {
+      id,
+      title,
+      tagIds: [...(menuTags.get(id) ?? [])],
+      shared: isShared(row),
+    };
     if (collection_id === null) {
-      uncollected.push(menu);
+      (menu.shared ? sharedUncollected : ownUncollected).push(menu);
     } else {
       const group = byCollection.get(collection_id) ?? [];
       group.push(menu);
@@ -53,21 +65,29 @@ export async function Sidebar() {
     }
   }
 
-  const groups: SidebarGroupData[] = [
-    ...collections.map((collection) => ({
-      key: String(collection.id),
-      collectionId: collection.id,
-      name: collection.name,
-      menus: byCollection.get(collection.id) ?? [],
-    })),
-    {
-      key: "none",
-      collectionId: null,
-      name: "No collection",
-      menus: uncollected,
-      uncollected: true,
-    },
-  ];
+  // Each category lists its collections, then its menus in no collection.
+  function category(shared: boolean): SidebarGroupData[] {
+    return [
+      ...collections
+        .filter((collection) => isShared(collection) === shared)
+        .map((collection) => ({
+          key: String(collection.id),
+          collectionId: collection.id,
+          name: collection.name,
+          shared,
+          menus: byCollection.get(collection.id) ?? [],
+        })),
+      {
+        key: shared ? "shared-none" : "own-none",
+        collectionId: null,
+        name: "No collection",
+        shared,
+        menus: shared ? sharedUncollected : ownUncollected,
+        uncollected: true,
+      },
+    ];
+  }
+  const groups = [...category(true), ...category(false)];
 
   return <SidebarNav groups={groups} tagIds={tags.map((tag) => tag.id)} />;
 }

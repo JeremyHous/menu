@@ -5,14 +5,24 @@ import { usePathname } from "next/navigation";
 import { type DragEvent, useState } from "react";
 import { useMenuDrag } from "./menu-drag";
 import styles from "./menus.module.css";
+import { RenameCollection } from "./rename-collection";
 
-export type SidebarMenu = { id: number; title: string; tagIds: number[] };
+// shared is whether the menu is shared with every user.
+export type SidebarMenu = {
+  id: number;
+  title: string;
+  tagIds: number[];
+  shared: boolean;
+};
 
 type SidebarGroupProps = {
   name: string;
   // The collection's id, or null for the menus that belong to none. Menus
   // dropped on the group move there.
   collectionId: number | null;
+  // Whether the collection is shared with every user; true for "No
+  // collection". Only shared groups accept shared menus.
+  shared: boolean;
   menus: SidebarMenu[];
   // Styles the group for menus that belong to no collection.
   uncollected?: boolean;
@@ -33,6 +43,7 @@ type SidebarGroupProps = {
 export function SidebarGroup({
   name,
   collectionId,
+  shared,
   menus,
   uncollected,
   query = "",
@@ -47,7 +58,7 @@ export function SidebarGroup({
 
   const [open, setOpen] = useState(hasActive || filterMatch !== "");
   const { dragging, dragProps, canDrop, isDragEvent, drop } = useMenuDrag();
-  const target = { id: collectionId, name };
+  const target = { id: collectionId, name, shared };
   const droppable = canDrop(target);
   // True while a menu is dragged over this group.
   const [over, setOver] = useState(false);
@@ -119,7 +130,12 @@ export function SidebarGroup({
           {menus.map((menu) => (
             <li key={menu.id}>
               <Link
-                {...dragProps({ id: menu.id, title: menu.title, collectionId })}
+                {...dragProps({
+                  id: menu.id,
+                  title: menu.title,
+                  collectionId,
+                  shared: menu.shared,
+                })}
                 href={`/menus/${menu.id}${linkQuery}`}
                 className={`${styles.groupLink} ${dragging?.id === menu.id ? styles.dragged : ""}`}
                 aria-current={String(menu.id) === activeId ? "page" : undefined}
@@ -131,6 +147,9 @@ export function SidebarGroup({
         </ul>
       ) : (
         <p className={styles.groupEmpty}>{emptyText}</p>
+      )}
+      {collectionId !== null && (
+        <RenameCollection id={collectionId} name={name} />
       )}
     </details>
   );

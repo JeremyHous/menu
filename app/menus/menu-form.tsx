@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { MenuFormState } from "./actions";
 import type { Menu } from "@/app/lib/db";
+import { IngredientFields } from "./ingredient-fields";
+import { toRow } from "./ingredients";
 import styles from "./menus.module.css";
 
 type MenuAction = (
@@ -27,7 +29,6 @@ function toValues(menu?: Menu) {
   return {
     title: menu?.title ?? "",
     body: menu?.body ?? "",
-    ingredients: menu?.ingredients.join("\n") ?? "",
     carbon_footprint_kg: menu?.carbon_footprint_kg?.toString() ?? "",
     fans_appreciation: menu?.fans_appreciation?.toString() ?? "",
     supplier_name: menu?.supplier_name ?? "",
@@ -44,8 +45,21 @@ export function MenuForm({
   const [state, formAction, pending] = useActionState(action, initialState);
   // After a failed save, React resets the form to these defaults, so they
   // must be what the user just submitted rather than the saved recipe.
-  const values = { ...toValues(menu), ...state.values };
+  const { ingredients: submittedIngredients, ...submitted } =
+    state.values ?? {};
+  const values = { ...toValues(menu), ...submitted };
   const errors = state.errors ?? {};
+  const ingredientRows =
+    submittedIngredients ?? menu?.ingredient_items.map(toRow) ?? [];
+  // Counts save attempts. The ingredient rows are keyed on it, so after a
+  // failed save they start again from what the user submitted. Adjusting
+  // state during render avoids an extra render with the stale rows.
+  const [attempt, setAttempt] = useState(0);
+  const [prevState, setPrevState] = useState(state);
+  if (state !== prevState) {
+    setPrevState(state);
+    setAttempt(attempt + 1);
+  }
 
   function fieldProps(name: keyof typeof values) {
     const error = errors[name];
@@ -94,14 +108,12 @@ export function MenuForm({
         {fieldError("body")}
       </div>
 
-      <div className={styles.field}>
-        <label htmlFor="ingredients" className={styles.label}>
-          Ingredients <span className={styles.optional}>optional</span>
-        </label>
-        <p className={styles.hint}>One per line, or separated by commas.</p>
-        <textarea rows={5} {...fieldProps("ingredients")} />
-        {fieldError("ingredients")}
-      </div>
+      <IngredientFields
+        key={attempt}
+        initialRows={ingredientRows}
+        rowErrors={state.ingredientErrors}
+        error={errors.ingredients}
+      />
 
       <div className={styles.fieldRow}>
         <div className={styles.field}>
@@ -120,8 +132,7 @@ export function MenuForm({
 
         <div className={styles.field}>
           <label htmlFor="fans_appreciation" className={styles.label}>
-            Fan rating, 0 to 5{" "}
-            <span className={styles.optional}>optional</span>
+            Fan rating, 0 to 5 <span className={styles.optional}>optional</span>
           </label>
           <input
             type="text"
