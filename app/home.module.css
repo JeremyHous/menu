@@ -316,6 +316,37 @@
 
 /* Author page */
 
+/* Its own stacking context, so the pictogram can sit behind the content
+   (z-index -1) yet still above the page's paper background. Clipping stops
+   the figure's overhang from adding a horizontal scrollbar. */
+.authorPage {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+}
+
+/* A faint human figure in the background, on the right, in the ink color so
+   it follows the light and dark palettes. Low opacity keeps the text over it
+   readable. */
+.pictogram {
+  position: absolute;
+  z-index: -1;
+  top: 7rem;
+  right: max(-3rem, calc((100% - 64rem) / 2 - 3rem));
+  height: min(85vh, 48rem);
+  width: auto;
+  color: var(--ink);
+  opacity: 0.07;
+  pointer-events: none;
+}
+
+@media (max-width: 40rem) {
+  .pictogram {
+    top: 9rem;
+    height: 60vh;
+  }
+}
+
 .portrait {
   display: block;
   width: 6rem;
