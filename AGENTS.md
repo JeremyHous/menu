@@ -69,7 +69,12 @@ startup is known and harmless.
   `--leaf`, `--rust` and a `.dark` variant. Fonts: Gloock (display) and
   Karla (body), from `app/menus/fonts.ts`. The Tailwind/shadcn files in
   `components/` are starter leftovers used only by the auth pages,
-  `/protected` and the home page's auth and theme buttons.
+  `/protected` and the home page's auth button.
+- **Theme:** `next-themes` (provider in `app/layout.tsx`, `.dark` class on
+  `<html>`). The light/dark/system toggle is `app/theme-toggle.tsx`: part of
+  `SiteNav` (home, author, menus pages), and placed by hand on `/workspace`,
+  `/login` and `/sign-up`, which have no `SiteNav`. The auth pages keep the
+  shadcn grey palette.
 
 ## Database
 

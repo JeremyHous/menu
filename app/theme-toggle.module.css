@@ -1,0 +1,40 @@
+/* Theme toggle. On the home, author, workspace and menus pages it uses the
+   page's --ink, --paper, --rule and --saffron variables. The sign-in pages
+   define none of them, so the fallbacks follow the browser's color scheme,
+   which next-themes sets to match the theme. */
+
+.toggle {
+  display: inline-flex;
+  gap: 0.125rem;
+  padding: 0.125rem;
+  border: 2px solid var(--rule, GrayText);
+  border-radius: 999px;
+}
+
+.option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink, CanvasText);
+  cursor: pointer;
+}
+
+.option:hover {
+  background: var(--rule, GrayText);
+}
+
+.option[aria-pressed="true"] {
+  background: var(--ink, CanvasText);
+  color: var(--paper, Canvas);
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--saffron, #d99a12);
+  outline-offset: 2px;
+}

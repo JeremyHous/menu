@@ -1,4 +1,3 @@
-import { ThemeSwitcher } from "@/components/theme-switcher";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -97,7 +96,6 @@ export default function AuthorPage() {
       <footer className={styles.footer}>
         <div className={`${styles.frame} ${styles.footerInner}`}>
           <p>Built with Next.js and Supabase.</p>
-          <ThemeSwitcher />
         </div>
       </footer>
     </div>

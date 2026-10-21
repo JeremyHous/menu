@@ -1,6 +1,5 @@
 import { AuthButton } from "@/components/auth-button";
 import { EnvVarWarning } from "@/components/env-var-warning";
-import { ThemeSwitcher } from "@/components/theme-switcher";
 import { hasEnvVars } from "@/lib/utils";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -179,7 +178,6 @@ export default function Home() {
       <footer className={styles.footer}>
         <div className={`${styles.frame} ${styles.footerInner}`}>
           <p>Built with Next.js and Supabase.</p>
-          <ThemeSwitcher />
         </div>
       </footer>
     </div>

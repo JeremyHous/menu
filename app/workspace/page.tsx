@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import styles from "../home.module.css";
 import { signOut } from "../login/actions";
 import { body, display } from "../menus/fonts";
+import { ThemeToggle } from "../theme-toggle";
 
 // The signed-in landing page. Nothing on it renders until requireUser() has
 // checked the session with the Supabase Auth server; signed-out visitors are
@@ -22,6 +23,7 @@ async function Workspace() {
               Sign out
             </button>
           </form>
+          <ThemeToggle />
         </div>
       </header>
       <main className={`${styles.frame} ${styles.hero}`}>
