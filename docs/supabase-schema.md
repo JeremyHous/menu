@@ -22,7 +22,13 @@ Auth (`auth` schema). `menus`, `collections` and `tags` reference
 > [Storage](#storage-menu-images)) and
 > `20261014180000_menu_images_root_library.sql` (top-level images are
 > listable by every signed-in user). Verified afterwards with read-only
-> queries; the migration history has 14 entries, local and remote in sync.
+> queries.
+>
+> **Updated 2026-10-21** by migration
+> `20261021092201_menu_images_delete_own_unused_uploads.sql` (Storage
+> `DELETE` narrowed to the uploader's own unused files; see
+> [Storage](#storage-menu-images)). The migration history has 15 entries,
+> local and remote in sync.
 
 ## How this was verified
 
@@ -230,15 +236,27 @@ menus       * ──── *   tags            (through menu_tags)
   - `SELECT`: a top-level (library) image, a file the user uploaded
     (`owner_id`), or a file in the folder of a menu they can reach. This is
     what listing and "Choose from Storage" use.
-  - `DELETE`: a file the user uploaded, or one in the folder of a menu they
-    can reach. Library images have neither, so they cannot be deleted
-    through the API by app users. Storage needs `SELECT` to delete.
+  - `DELETE` (policy "menu images: delete own unused uploads"): only a file
+    the user uploaded (`owner_id`) that no menu visible to them uses as its
+    `image_path`. That is exactly the app's one delete, a file just uploaded
+    for a save that failed. Other users' uploads, files menus still show,
+    and library images (no owner) cannot be deleted through the API by app
+    users. Storage needs `SELECT` to delete. Until 2026-10-21 the policy also
+    allowed any file in the folder of a reachable menu, so any signed-in
+    user could delete images in shared menus' folders.
   - `anon` has no policy, so signed-out clients cannot upload or delete.
     Public URLs work for everyone, since the bucket is public.
 - **Tested before applying** in a rolled-back transaction as a real user:
   upload under an existing menu allowed, under a missing menu refused,
   `image_path` update allowed. The `20261014180000` change was checked the
-  same way: a signed-in user saw 1 object before it and 6 after it.
+  same way: a signed-in user saw 1 object before it and 6 after it. The
+  `20261021092201` change was checked by evaluating the stored `DELETE`
+  condition as two real users, before and after (a SQL `DELETE` on
+  `storage.objects` is refused by a statement trigger, so it cannot serve
+  as the test): a user who did not upload a file in shared menu 1's folder
+  could delete it before and cannot after; its uploader still can, since no
+  menu uses it; a user's own image that their menu displays is no longer
+  deletable.
 
 ## Database objects not created by this project's migrations
 

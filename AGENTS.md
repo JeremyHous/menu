@@ -163,8 +163,8 @@ startup is known and harmless.
   up to the image limit plus 512 KB (`experimental.serverActions.bodySizeLimit`).
 - **Policies on `storage.objects`:** `INSERT` into the folder of a menu the
   user can reach; `SELECT` library files, own uploads, or reachable menus'
-  folders; `DELETE` own uploads or reachable menus' folders. Details in
-  `docs/supabase-schema.md`.
+  folders; `DELETE` only own uploads that no menu uses (the app's cleanup
+  after a failed save). Details in `docs/supabase-schema.md`.
 - **Verifying an upload:** query `storage.objects` read-only and fetch the
   public URL. In the dashboard, uploads are inside the menu-id folders, not
   at the bucket's top level, which is easy to miss.
