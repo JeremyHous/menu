@@ -26,22 +26,38 @@ export function matchesSearch(
   return words.every((word) => text.includes(word));
 }
 
-// The query string that keeps both filters, e.g. "?tags=1,4&q=soup", or ""
-// when neither is set. Links between /menus pages use it so the filters
-// survive navigation.
-export function filtersQuery(selectedTags: number[], query: string): string {
-  const tags = tagQuery(selectedTags);
-  const search = normalizeSearch(query);
-  if (!search) return tags;
-  const q = `${SEARCH_PARAM}=${encodeURIComponent(search)}`;
-  return tags ? `${tags}&${q}` : `?${q}`;
+// ?mine=1 limits the list to the user's own dishes, which are exactly the
+// ones in "My own collections": shared and own items never mix.
+export const MINE_PARAM = "mine";
+
+export function parseMine(raw: string | string[] | null | undefined) {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return value === "1";
 }
 
-// Reads both filters from a URLSearchParams in the browser, without checking
+// The query string that keeps every filter, e.g. "?tags=1,4&q=soup&mine=1",
+// or "" when none is set. Links between /menus pages use it so the filters
+// survive navigation.
+export function filtersQuery(
+  selectedTags: number[],
+  query: string,
+  mine = false,
+): string {
+  const search = normalizeSearch(query);
+  const parts = [
+    tagQuery(selectedTags).slice(1),
+    search && `${SEARCH_PARAM}=${encodeURIComponent(search)}`,
+    mine && `${MINE_PARAM}=1`,
+  ].filter(Boolean);
+  return parts.length > 0 ? `?${parts.join("&")}` : "";
+}
+
+// Reads every filter from a URLSearchParams in the browser, without checking
 // that the tags exist.
 export function filtersQueryFromParams(params: URLSearchParams): string {
   return filtersQuery(
     parseSelectedTags(params.get(TAG_PARAM)),
     params.get(SEARCH_PARAM) ?? "",
+    parseMine(params.get(MINE_PARAM)),
   );
 }
