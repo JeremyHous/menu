@@ -1,4 +1,3 @@
-import { ThemeSwitcher } from "@/components/theme-switcher";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -7,6 +6,7 @@ import { body, display } from "../menus/fonts";
 import { Suspense } from "react";
 import { SignedIn } from "../signed-in";
 import { SiteNav } from "../site-nav";
+import { HumanPictogram } from "./human-pictogram";
 
 export const metadata: Metadata = {
   title: "About the author",
@@ -15,7 +15,10 @@ export const metadata: Metadata = {
 // A page about the app's author, styled like the home page. Signed-in only.
 export default function AuthorPage() {
   return (
-    <div className={`${body.className} ${styles.page}`}>
+    <div className={`${body.className} ${styles.page} ${styles.authorPage}`}>
+      {/* Background decoration only; it holds no private content, so it sits
+          outside the signed-in check. */}
+      <HumanPictogram className={styles.pictogram} />
       {/* The session is only known at request time, so it is checked inside
           Suspense, as Cache Components requires. */}
       <Suspense
@@ -97,7 +100,6 @@ export default function AuthorPage() {
       <footer className={styles.footer}>
         <div className={`${styles.frame} ${styles.footerInner}`}>
           <p>Built with Next.js and Supabase.</p>
-          <ThemeSwitcher />
         </div>
       </footer>
     </div>

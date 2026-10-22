@@ -69,7 +69,12 @@ startup is known and harmless.
   `--leaf`, `--rust` and a `.dark` variant. Fonts: Gloock (display) and
   Karla (body), from `app/menus/fonts.ts`. The Tailwind/shadcn files in
   `components/` are starter leftovers used only by the auth pages,
-  `/protected` and the home page's auth and theme buttons.
+  `/protected` and the home page's auth button.
+- **Theme:** `next-themes` (provider in `app/layout.tsx`, `.dark` class on
+  `<html>`). The light/dark/system toggle is `app/theme-toggle.tsx`: part of
+  `SiteNav` (home, author, menus pages), and placed by hand on `/workspace`,
+  `/login` and `/sign-up`, which have no `SiteNav`. The auth pages keep the
+  shadcn grey palette.
 
 ## Database
 
@@ -158,8 +163,8 @@ startup is known and harmless.
   up to the image limit plus 512 KB (`experimental.serverActions.bodySizeLimit`).
 - **Policies on `storage.objects`:** `INSERT` into the folder of a menu the
   user can reach; `SELECT` library files, own uploads, or reachable menus'
-  folders; `DELETE` own uploads or reachable menus' folders. Details in
-  `docs/supabase-schema.md`.
+  folders; `DELETE` only own uploads that no menu uses (the app's cleanup
+  after a failed save). Details in `docs/supabase-schema.md`.
 - **Verifying an upload:** query `storage.objects` read-only and fetch the
   public URL. In the dashboard, uploads are inside the menu-id folders, not
   at the bucket's top level, which is easy to miss.

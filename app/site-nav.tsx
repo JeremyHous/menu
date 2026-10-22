@@ -1,5 +1,6 @@
 import Link from "next/link";
 import styles from "./site-nav.module.css";
+import { ThemeToggle } from "./theme-toggle";
 
 const LINKS = [
   { key: "home", href: "/", label: "Home" },
@@ -15,24 +16,29 @@ type SiteNavProps = {
 };
 
 // The links between the app's main pages: home, the menus browser and the
-// author page. Its colors come from the page's CSS variables, so it fits both
-// the home and the menus palettes, light and dark.
+// author page, followed by the theme toggle. Its colors come from the page's
+// CSS variables, so it fits both the home and the menus palettes, light and
+// dark.
 export function SiteNav({ current, className = "" }: SiteNavProps) {
   return (
-    <nav aria-label="Main" className={`${styles.nav} ${className}`}>
-      <ul className={styles.list}>
-        {LINKS.map((link) => (
-          <li key={link.key}>
-            <Link
-              href={link.href}
-              className={styles.link}
-              aria-current={link.key === current ? "page" : undefined}
-            >
-              {link.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
+    <div className={`${styles.bar} ${className}`}>
+      <nav aria-label="Main" className={styles.nav}>
+        <ul className={styles.list}>
+          {LINKS.map((link) => (
+            <li key={link.key}>
+              <Link
+                href={link.href}
+                className={styles.link}
+                aria-current={link.key === current ? "page" : undefined}
+              >
+                {link.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      {/* Outside the nav landmark: it is a setting, not a link. */}
+      <ThemeToggle />
+    </div>
   );
 }

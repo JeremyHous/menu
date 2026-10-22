@@ -1,6 +1,13 @@
 /* Main navigation, shared by the home, author and menus pages. It uses the
    --ink, --rule and --saffron variables each page defines. */
 
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .nav {
   font-size: 0.9375rem;
 }

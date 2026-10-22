@@ -22,7 +22,20 @@ Auth (`auth` schema). `menus`, `collections` and `tags` reference
 > [Storage](#storage-menu-images)) and
 > `20261014180000_menu_images_root_library.sql` (top-level images are
 > listable by every signed-in user). Verified afterwards with read-only
-> queries; the migration history has 14 entries, local and remote in sync.
+> queries.
+>
+> **Updated 2026-10-21** by migration
+> `20261021092201_menu_images_delete_own_unused_uploads.sql` (Storage
+> `DELETE` narrowed to the uploader's own unused files; see
+> [Storage](#storage-menu-images)). The migration history has 15 entries,
+> local and remote in sync.
+>
+> **Updated 2026-10-22** by migration
+> `20261022100000_revoke_rls_auto_enable_execute.sql` (`EXECUTE` on
+> `public.rls_auto_enable()` revoked from `PUBLIC`, `anon` and
+> `authenticated`; see
+> [Database objects not created by this project's migrations](#database-objects-not-created-by-this-projects-migrations)).
+> The migration history has 16 entries, local and remote in sync.
 
 ## How this was verified
 
@@ -230,27 +243,39 @@ menus       * ──── *   tags            (through menu_tags)
   - `SELECT`: a top-level (library) image, a file the user uploaded
     (`owner_id`), or a file in the folder of a menu they can reach. This is
     what listing and "Choose from Storage" use.
-  - `DELETE`: a file the user uploaded, or one in the folder of a menu they
-    can reach. Library images have neither, so they cannot be deleted
-    through the API by app users. Storage needs `SELECT` to delete.
+  - `DELETE` (policy "menu images: delete own unused uploads"): only a file
+    the user uploaded (`owner_id`) that no menu visible to them uses as its
+    `image_path`. That is exactly the app's one delete, a file just uploaded
+    for a save that failed. Other users' uploads, files menus still show,
+    and library images (no owner) cannot be deleted through the API by app
+    users. Storage needs `SELECT` to delete. Until 2026-10-21 the policy also
+    allowed any file in the folder of a reachable menu, so any signed-in
+    user could delete images in shared menus' folders.
   - `anon` has no policy, so signed-out clients cannot upload or delete.
     Public URLs work for everyone, since the bucket is public.
 - **Tested before applying** in a rolled-back transaction as a real user:
   upload under an existing menu allowed, under a missing menu refused,
   `image_path` update allowed. The `20261014180000` change was checked the
-  same way: a signed-in user saw 1 object before it and 6 after it.
+  same way: a signed-in user saw 1 object before it and 6 after it. The
+  `20261021092201` change was checked by evaluating the stored `DELETE`
+  condition as two real users, before and after (a SQL `DELETE` on
+  `storage.objects` is refused by a statement trigger, so it cannot serve
+  as the test): a user who did not upload a file in shared menu 1's folder
+  could delete it before and cannot after; its uploader still can, since no
+  menu uses it; a user's own image that their menu displays is no longer
+  deletable.
 
 ## Database objects not created by this project's migrations
 
 These exist in the live database but are not in `supabase/migrations/`:
 
-- **`public.rls_auto_enable()`** (`SECURITY DEFINER`, owner `postgres`), fired by the event trigger **`ensure_rls`** on `ddl_command_end`. Its name suggests it enables RLS on newly created tables, but its definition was not inspected and its origin was not confirmed.
+- **`public.rls_auto_enable()`** (`SECURITY DEFINER`, owner `postgres`), fired by the event trigger **`ensure_rls`** on `ddl_command_end`. For every table created in `public` (`CREATE TABLE`, `CREATE TABLE AS`, `SELECT INTO`), it runs `alter table … enable row level security`, with `search_path` set to `pg_catalog`; it does nothing else. It returns `event_trigger`, so it cannot be called directly or through the API. Only `postgres` may execute it: migration `20261022100000` revoked the default `EXECUTE` from `PUBLIC`, `anon` and `authenticated`, and the event trigger still fires (Postgres does not check `EXECUTE` for event triggers; verified with a rolled-back test). Its origin was not confirmed.
 - **Supabase-managed event triggers:** `issue_graphql_placeholder`, `issue_pg_cron_access`, `issue_pg_graphql_access`, `issue_pg_net_access`, `pgrst_ddl_watch` and `pgrst_drop_watch`. These are not part of the app's schema.
 
 ## Not verified / out of scope
 
 - **Where the extra grants came from.** Before 2026-10-14, `anon` and `authenticated` also had `TRUNCATE`, `REFERENCES` and `TRIGGER`, not from the project's migrations; the ownership migration revoked them. The limited `service_role` privileges were observed but not traced to a cause. Likely candidates are Supabase's default privileges or a dashboard change.
-- **What `rls_auto_enable()` does exactly, and who added it.**
+- **Who added `rls_auto_enable()`.**
 - **Supabase Auth, Storage and other non-`public` schemas** were not documented. No app table references them.
 - **Data contents** were not audited beyond the row counts above.
 
