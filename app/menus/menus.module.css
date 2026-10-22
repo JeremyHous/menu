@@ -823,6 +823,11 @@
   display: none;
 }
 
+/* The "Show only my collections" toggle above the list. */
+.mineFilter {
+  margin-bottom: 1.5rem;
+}
+
 .filterNote {
   margin-bottom: 2.5rem;
   text-align: center;

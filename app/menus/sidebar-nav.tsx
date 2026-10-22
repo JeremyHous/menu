@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useMenuDrag } from "./menu-drag";
 import styles from "./menus.module.css";
 import { NewCollection } from "./new-collection";
-import { filtersQuery, SEARCH_PARAM } from "./search";
+import { filtersQuery, MINE_PARAM, parseMine, SEARCH_PARAM } from "./search";
 import { type SidebarMenu, SidebarGroup } from "./sidebar-group";
 import {
   hasAllTags,
@@ -43,11 +43,13 @@ export function SidebarNav({ groups, tagIds }: SidebarNavProps) {
   const selected = parseSelectedTags(searchParams.get(TAG_PARAM), tagIds);
   const filtering = selected.length > 0;
   const query = tagQuery(selected);
-  // Menu links keep the tags and the search query, so both survive opening
-  // a menu. The sidebar itself is filtered by tags only.
+  // Menu links keep the tags, the search query and the "my collections"
+  // filter, so they survive opening a menu. The sidebar itself is filtered
+  // by tags only.
   const linkQuery = filtersQuery(
     selected,
     searchParams.get(SEARCH_PARAM) ?? "",
+    parseMine(searchParams.get(MINE_PARAM)),
   );
 
   const { pendingMoves, moving, status } = useMenuDrag();

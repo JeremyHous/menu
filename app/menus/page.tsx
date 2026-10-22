@@ -8,6 +8,7 @@ import {
   menuImageUrl,
   type Tag,
 } from "@/app/lib/db";
+import Form from "next/form";
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -18,18 +19,33 @@ import { carbonClass, Stars } from "./menu-display";
 import { DraggableDish } from "./menu-drag";
 import styles from "./menus.module.css";
 import { MenuSearch, MenuSearchFallback } from "./menu-search";
-import { filtersQuery, matchesSearch, normalizeSearch } from "./search";
-import { hasAllTags, parseSelectedTags, tagsByMenu } from "./tag-filter";
+import {
+  filtersQuery,
+  matchesSearch,
+  MINE_PARAM,
+  normalizeSearch,
+  parseMine,
+  SEARCH_PARAM,
+} from "./search";
+import {
+  hasAllTags,
+  parseSelectedTags,
+  TAG_PARAM,
+  tagsByMenu,
+} from "./tag-filter";
 
 type MenuListProps = {
-  // The raw ?tags= and ?q= values.
+  // The raw ?tags=, ?q= and ?mine= values.
   rawTags?: string | string[];
   rawQuery?: string | string[];
+  rawMine?: string | string[];
 };
 
-// Lists the menus that match the search query and have every selected tag.
-async function MenuList({ rawTags, rawQuery }: MenuListProps) {
+// Lists the menus that match the search query and have every selected tag,
+// only the user's own when "Show only my collections" is on.
+async function MenuList({ rawTags, rawQuery, rawMine }: MenuListProps) {
   const query = normalizeSearch(rawQuery);
+  const mine = parseMine(rawMine);
   let menus: Menu[];
   let selectedTags: Tag[] = [];
   // How many menus exist before filtering, to tell an empty table apart from
@@ -66,21 +82,49 @@ async function MenuList({ rawTags, rawQuery }: MenuListProps) {
   }
   // AND with the tag filter: only menus that passed it are searched.
   menus = menus.filter((menu) => matchesSearch(menu, query));
+  // Shared and own items never mix, so the user's own dishes are exactly
+  // the ones in "My own collections".
+  if (mine) menus = menus.filter((menu) => !isShared(menu));
 
   const selectedIds = selectedTags.map((tag) => tag.id);
-  // Menu links keep both filters, so "Back to menus" can restore them.
-  const linkQuery = filtersQuery(selectedIds, query);
+  // Menu links keep every filter, so "Back to menus" can restore them.
+  const linkQuery = filtersQuery(selectedIds, query, mine);
   const tagNames = selectedTags.map((tag) => tag.name).join(" and ");
   const searchText = query && `matching “${query}”`;
   const tagText = tagNames && `tagged ${tagNames}`;
+  const mineText = mine && "from my collections";
 
-  const filtering = query !== "" || tagNames !== "";
-  const clearSearchHref = `/menus${filtersQuery(selectedIds, "")}`;
-  const clearTagsHref = `/menus${filtersQuery([], query)}`;
+  const searchingOrTagged = query !== "" || tagNames !== "";
+  const filtering = searchingOrTagged || mine;
+  const clearSearchHref = `/menus${filtersQuery(selectedIds, "", mine)}`;
+  const clearTagsHref = `/menus${filtersQuery([], query, mine)}`;
+  const clearBothHref = `/menus${filtersQuery([], "", mine)}`;
 
-  // Links that each drop one filter and keep the other, plus one that drops
-  // both when both are set.
-  const clearActions = filtering && (
+  // A GET form, so the toggle also works without JavaScript. It keeps the
+  // tags and the search, and adds ?mine=1 only when the filter is off, so
+  // pressing it again turns the filter off.
+  const mineToggle = (
+    <Form action="/menus" scroll={false} className={styles.mineFilter}>
+      {selectedIds.length > 0 && (
+        <input type="hidden" name={TAG_PARAM} value={selectedIds.join(",")} />
+      )}
+      {query && <input type="hidden" name={SEARCH_PARAM} value={query} />}
+      {!mine && <input type="hidden" name={MINE_PARAM} value="1" />}
+      <button
+        type="submit"
+        aria-pressed={mine}
+        className={`${styles.filterTag} ${mine ? styles.filterTagOn : ""}`}
+      >
+        {mine && <span aria-hidden="true">✓ </span>}
+        Show only my collections
+      </button>
+    </Form>
+  );
+
+  // Links that each drop one filter and keep the others, plus one that
+  // drops both the search and the tags when both are set. The "my
+  // collections" filter is turned off with its own toggle.
+  const clearActions = searchingOrTagged && (
     <div className={styles.emptyActions}>
       {query && (
         <Link href={clearSearchHref} className={styles.linkButton}>
@@ -93,7 +137,7 @@ async function MenuList({ rawTags, rawQuery }: MenuListProps) {
         </Link>
       )}
       {query && tagNames && (
-        <Link href="/menus" className={styles.linkButton}>
+        <Link href={clearBothHref} className={styles.linkButton}>
           Clear search and tags
         </Link>
       )}
@@ -117,39 +161,52 @@ async function MenuList({ rawTags, rawQuery }: MenuListProps) {
 
   // Menus exist, but none match the filters.
   if (menus.length === 0) {
+    const none = mine ? "None of your dishes" : "No dish";
     let detail: string;
     if (query && tagNames) {
-      detail = `No dish matches “${query}” and is also tagged ${tagNames}.`;
+      detail = `${none} matches “${query}” and is also tagged ${tagNames}.`;
     } else if (query) {
-      detail = `No dish has “${query}” in its title or description.`;
+      detail = `${none} has “${query}” in its title or description.`;
+    } else if (tagNames) {
+      detail = `${none} is tagged ${tagNames}.`;
     } else {
-      detail = `No dish is tagged ${tagNames}.`;
+      detail = "You have no dishes of your own yet.";
     }
-    const hint =
-      selectedTags.length > 1
-        ? "Dishes must have every selected tag. Try fewer tags or other words."
-        : "Try other words or a different tag.";
+    let hint: string;
+    if (!searchingOrTagged) {
+      hint =
+        "Recipes you add are yours. Turn off “Show only my collections” to see the shared ones.";
+    } else if (selectedTags.length > 1) {
+      hint =
+        "Dishes must have every selected tag. Try fewer tags or other words.";
+    } else {
+      hint = "Try other words or a different tag.";
+    }
     return (
-      <div role="status" className={styles.emptyState}>
-        <p className={styles.emptyTitle}>No matching dishes</p>
-        <p>{detail}</p>
-        <p className={styles.hint}>
-          {hint} There {total === 1 ? "is" : "are"} {total}{" "}
-          {total === 1 ? "dish" : "dishes"} in total.
-        </p>
-        {clearActions}
-      </div>
+      <>
+        {mineToggle}
+        <div role="status" className={styles.emptyState}>
+          <p className={styles.emptyTitle}>No matching dishes</p>
+          <p>{detail}</p>
+          <p className={styles.hint}>
+            {hint} There {total === 1 ? "is" : "are"} {total}{" "}
+            {total === 1 ? "dish" : "dishes"} in total.
+          </p>
+          {clearActions}
+        </div>
+      </>
     );
   }
 
   let summary = "";
   if (filtering) {
     const dishes = `${menus.length} of ${total} ${total === 1 ? "dish" : "dishes"}`;
-    summary = `Showing ${[dishes, searchText, tagText].filter(Boolean).join(" ")}.`;
+    summary = `Showing ${[dishes, searchText, tagText, mineText].filter(Boolean).join(" ")}.`;
   }
 
   return (
     <>
+      {mineToggle}
       {filtering && (
         <div className={styles.filterNote}>
           <p role="status">{summary}</p>
@@ -263,8 +320,8 @@ export default function MenusPage({ searchParams }: PageProps<"/menus">) {
             >
               {/* searchParams are only known at request time, so they are read
               inside Suspense, as Cache Components requires. */}
-              {searchParams.then(({ tags, q }) => (
-                <MenuList rawTags={tags} rawQuery={q} />
+              {searchParams.then(({ tags, q, mine }) => (
+                <MenuList rawTags={tags} rawQuery={q} rawMine={mine} />
               ))}
             </Suspense>
             <footer className={styles.legend}>
