@@ -1,0 +1,15 @@
+-- public.rls_auto_enable(): remove the default EXECUTE grant. The function
+-- is SECURITY DEFINER (owner postgres) and lives in the API-exposed public
+-- schema, and like every new function it was executable by PUBLIC, so anon
+-- and authenticated could execute it.
+--
+-- It was not created by these migrations. It is fired by the event trigger
+-- ensure_rls on ddl_command_end and turns on row level security for every
+-- table created in public, with search_path pg_catalog. It returns
+-- event_trigger, so it cannot be called directly or through the API; this
+-- revoke removes the grant anyway, as no role needs it.
+--
+-- The event trigger keeps working: Postgres does not check EXECUTE when it
+-- fires an event trigger. A rolled-back dry run confirmed it: after the
+-- revoke, a new table in public still had RLS on.
+revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
