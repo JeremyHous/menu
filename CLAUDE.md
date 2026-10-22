@@ -23,6 +23,8 @@ works with this user.
   log (it shows each server action's previous state), read-only queries,
   and the public Storage URL. Find the real cause before changing code; if
   the code is correct, explain what the user is seeing instead.
+- **Use the CLI for one-off tasks. Use MCP when the agent needs to repeat or
+  react to what's on screen.**
 - **Commit only when asked.** The working tree often has unrelated
   uncommitted changes; stage only the files that belong to the request.
 - The user sometimes writes in French; answer in the user's language, but
