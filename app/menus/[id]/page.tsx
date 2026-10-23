@@ -113,7 +113,7 @@ async function MenuDetail({ id }: { id: string }) {
       {/* Two ways to set the image, shown as two numbered options so the
           choice is obvious. */}
       <section className={styles.section}>
-        <RemoveMenuImage menuId={menu.id} hasImage={menu.image_path !== null} />
+        <RemoveMenuImage menuId={menu.id} currentPath={menu.image_path} />
         <div className={styles.imageOption}>
           <h3 className={styles.imageOptionTitle}>
             <span className={styles.optionNumber} aria-hidden="true">
@@ -121,7 +121,7 @@ async function MenuDetail({ id }: { id: string }) {
             </span>
             Upload from your device
           </h3>
-          <MenuImageForm menuId={menu.id} hasImage={menu.image_path !== null} />
+          <MenuImageForm menuId={menu.id} currentPath={menu.image_path} />
         </div>
         <p className={styles.optionDivider} aria-hidden="true">
           or

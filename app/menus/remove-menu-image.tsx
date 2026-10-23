@@ -8,16 +8,17 @@ const initialState: MenuImageState = {};
 
 type RemoveMenuImageProps = {
   menuId: number;
-  hasImage: boolean;
+  currentPath: string | null;
 };
 
 // The image section's heading, with a button to take the image off the menu
 // when it has one. The file stays in Storage.
-export function RemoveMenuImage({ menuId, hasImage }: RemoveMenuImageProps) {
+export function RemoveMenuImage({ menuId, currentPath }: RemoveMenuImageProps) {
   const [state, formAction, pending] = useActionState(
     updateMenuImage,
     initialState,
   );
+  const hasImage = currentPath !== null;
 
   // The button disappears once the image is gone, so focus moves to the
   // heading instead of being lost.
@@ -59,7 +60,7 @@ export function RemoveMenuImage({ menuId, hasImage }: RemoveMenuImageProps) {
         </p>
       )}
       <p role="status" className={styles.status}>
-        {!pending && state.message}
+        {!pending && state.imagePath === currentPath && state.message}
       </p>
     </div>
   );

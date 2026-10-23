@@ -306,6 +306,10 @@ export type MenuImageState = {
   error?: string;
   // Confirmation shown after a successful change.
   message?: string;
+  // The menu's image path after that change. The page has three image forms,
+  // and each shows its confirmation only while the menu still has this image,
+  // so a message does not outlive a later change made with another form.
+  imagePath?: string | null;
 };
 
 // Reads the chosen file. Its type is taken from the file's first bytes,
@@ -418,12 +422,13 @@ export async function updateMenuImage(
 
   // The menu list shows the image too.
   revalidatePath("/menus", "layout");
-  if (!newPath) return { message: "Image removed." };
+  if (!newPath) return { message: "Image removed.", imagePath: null };
   // Naming the file tells the user where to find it: uploads go in the
   // menu's folder, not at the top of the bucket.
   const done = previousPath ? "Image replaced." : "Image added.";
   return {
     message: `${done} It is saved in Storage as menu-images/${newPath}.`,
+    imagePath: newPath,
   };
 }
 
@@ -469,7 +474,7 @@ export async function chooseMenuImage(
 
   // The menu list shows the image too.
   revalidatePath("/menus", "layout");
-  return { message: "Image changed." };
+  return { message: "Image changed.", imagePath: path };
 }
 
 // Collections

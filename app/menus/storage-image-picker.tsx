@@ -116,7 +116,7 @@ export function StorageImagePicker({
         </p>
       )}
       <p role="status" className={styles.status}>
-        {!pending && state.message}
+        {!pending && state.imagePath === currentPath && state.message}
       </p>
     </form>
   );

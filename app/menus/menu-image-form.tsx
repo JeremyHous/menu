@@ -14,16 +14,17 @@ const initialState: MenuImageState = {};
 
 type MenuImageFormProps = {
   menuId: number;
-  hasImage: boolean;
+  currentPath: string | null;
 };
 
 // The "upload from your device" option on the menu's page. It saves on its
 // own, so recipes whose other fields still need fixing can get an image too.
-export function MenuImageForm({ menuId, hasImage }: MenuImageFormProps) {
+export function MenuImageForm({ menuId, currentPath }: MenuImageFormProps) {
   const [state, formAction, pending] = useActionState(
     updateMenuImage,
     initialState,
   );
+  const hasImage = currentPath !== null;
   // A problem with the chosen file, found before submitting. The server
   // checks again; this only spares the user a slow upload that would fail.
   const [warning, setWarning] = useState<string | null>(null);
@@ -78,7 +79,7 @@ export function MenuImageForm({ menuId, hasImage }: MenuImageFormProps) {
         </p>
       )}
       <p role="status" className={styles.status}>
-        {!pending && state.message}
+        {!pending && state.imagePath === currentPath && state.message}
       </p>
     </form>
   );
